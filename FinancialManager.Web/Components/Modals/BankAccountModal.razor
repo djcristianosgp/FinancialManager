@@ -1,0 +1,158 @@
+@using FinancialManager.Application.Dtos
+@using FinancialManager.Domain.Enums
+@using MudBlazor
+@using System.Globalization
+
+@inject IBankAccountService BankAccountService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <EditForm Model="@_model" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            
+            <MudTextField @bind-Value="_model.Bank"
+                         Label="Nome do Banco"
+                         Required="true"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         Placeholder="Ex: Nubank, Inter, Bradesco"
+                         Class="mb-4" />
+            
+            <MudGrid Class="mb-4">
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="AccountType" @bind-Value="_model.Type"
+                             Label="Tipo de Conta"
+                             Required="true"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense">
+                        <MudSelectItem T="AccountType" Value="AccountType.Checking">Corrente</MudSelectItem>
+                        <MudSelectItem T="AccountType" Value="AccountType.Savings">Poupança</MudSelectItem>
+                        <MudSelectItem T="AccountType" Value="AccountType.Digital">Digital</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="_model.InitialBalance"
+                                   Label="Saldo Inicial"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense"
+                                   Min="0m"
+                                   Step="0.01m"
+                                   Format="C2"
+                                   Culture="@_culture" />
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex gap-2 mt-4">
+                <MudButton Color="Color.Default" 
+                          Variant="Variant.Outlined"
+                          ButtonType="ButtonType.Button"
+                          OnClick="Cancel">
+                    Cancelar
+                </MudButton>
+                <MudButton Color="Color.Primary" 
+                          Variant="Variant.Filled"
+                          ButtonType="ButtonType.Submit"
+                          Disabled="@_saving">
+                    @if (_saving)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true"/>
+                        <MudText Class="ms-2">Salvando...</MudText>
+                    }
+                    else
+                    {
+                        <text>Salvar</text>
+                    }
+                </MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+    
+    [Parameter] 
+    public Guid? AccountId { get; set; }
+    
+    private BankAccountFormModel _model = new();
+    private bool _saving = false;
+    private readonly CultureInfo _culture = new("pt-BR");
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AccountId.HasValue)
+        {
+            var account = await BankAccountService.GetByIdAsync(AccountId.Value);
+            if (account != null)
+            {
+                _model = new BankAccountFormModel
+                {
+                    Bank = account.Bank,
+                    Type = account.Type,
+                    InitialBalance = account.InitialBalance
+                };
+            }
+        }
+        else
+        {
+            _model.Type = AccountType.Checking;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _saving = true;
+        try
+        {
+            if (AccountId.HasValue)
+            {
+                var dto = new BankAccountUpdateDto(
+                    AccountId.Value,
+                    _model.Bank,
+                    _model.Type
+                );
+                
+                await BankAccountService.UpdateAsync(dto);
+                Snackbar.Add("Conta bancária atualizada com sucesso!", Severity.Success);
+            }
+            else
+            {
+                var dto = new BankAccountCreateDto(
+                    _model.Bank,
+                    _model.Type,
+                    _model.InitialBalance
+                );
+                
+                await BankAccountService.CreateAsync(dto);
+                Snackbar.Add("Conta bancária criada com sucesso!", Severity.Success);
+            }            
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao salvar conta: {ex.Message}", Severity.Error);
+            _saving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Close(DialogResult.Cancel());
+    }
+
+    private class BankAccountFormModel
+    {
+        [Required(ErrorMessage = "O banco é obrigatório")]
+        public string Bank { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "O tipo de conta é obrigatório")]
+        public AccountType Type { get; set; }
+
+        [Required(ErrorMessage = "O saldo inicial é obrigatório")]
+        [Range(0, double.MaxValue, ErrorMessage = "O saldo não pode ser negativo")]
+        public decimal InitialBalance { get; set; }
+    }
+}

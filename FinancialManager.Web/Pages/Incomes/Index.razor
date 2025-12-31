@@ -1,0 +1,194 @@
+@page "/incomes"
+@attribute [Authorize]
+@using FinancialManager.Web.Components.Modals
+@inject IIncomeService IncomeService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<MudText Typo="Typo.h4" Class="mb-6 fw-bold">💰 Receitas</MudText>
+
+<AppCard>
+    <HeaderActions>
+        <AppButton Color="Color.Success" 
+                  StartIcon="@Icons.Material.Filled.Add"
+                  OnClick="OpenCreateDialog">
+            Nova Receita
+        </AppButton>
+    </HeaderActions>
+    <ChildContent>
+        @if (_loading)
+        {
+            <div class="d-flex justify-content-center py-5">
+                <MudProgressCircular Indeterminate="true" />
+            </div>
+        }
+        else if (!_incomes.Any())
+        {
+            <MudAlert Severity="Severity.Info">Nenhuma receita cadastrada.</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@_incomes" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true">
+                <HeaderContent>
+                    <MudTh>Data</MudTh>
+                    <MudTh>Descrição</MudTh>
+                    <MudTh>Categoria</MudTh>
+                    <MudTh>Conta</MudTh>
+                    <MudTh>Recorrência</MudTh>
+                    <MudTh Style="text-align: right;">Valor</MudTh>
+                    <MudTh Style="text-align: center;">Ações</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Data">@context.Date.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd DataLabel="Descrição">@context.Description</MudTd>
+                    <MudTd DataLabel="Categoria">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.Category</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Conta">@context.BankAccountName</MudTd>
+                    <MudTd DataLabel="Recorrência">
+                        <MudChip T="string" Size="Size.Small" Color="@GetRecurrenceColor(context.Recurrence)">
+                            @GetRecurrenceText(context.Recurrence)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Valor" Style="text-align: right;">
+                        <MudText Typo="Typo.body2" Color="Color.Success" Class="fw-bold">
+                            @context.Amount.ToString("C", _culture)
+                        </MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Ações" Style="text-align: center;">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                      Color="Color.Primary"
+                                      Size="Size.Small"
+                                      OnClick="@(() => OpenEditDialog(context.Id))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                      Color="Color.Error"
+                                      Size="Size.Small"
+                                      OnClick="@(() => ConfirmDelete(context.Id, context.Description))" />
+                    </MudTd>
+                </RowTemplate>
+                <FooterContent>
+                    <MudTh colspan="5" Style="text-align: right;">
+                        <MudText Typo="Typo.body1" Class="fw-bold">Total:</MudText>
+                    </MudTh>
+                    <MudTh Style="text-align: right;">
+                        <MudText Typo="Typo.body1" Color="Color.Success" Class="fw-bold">
+                            @_incomes.Sum(i => i.Amount).ToString("C", _culture)
+                        </MudText>
+                    </MudTh>
+                    <MudTh></MudTh>
+                </FooterContent>
+            </MudTable>
+        }
+    </ChildContent>
+</AppCard>
+
+@code {
+    private readonly CultureInfo _culture = CultureInfo.GetCultureInfo("pt-BR");
+    private List<IncomeListItem> _incomes = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        _incomes = await IncomeService.GetAllAsync();
+        _loading = false;
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions 
+        { 
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<IncomeModal>("Nova Receita", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task OpenEditDialog(Guid id)
+    {
+        var parameters = new DialogParameters
+        {
+            ["IncomeId"] = id
+        };
+        
+        var options = new DialogOptions 
+        { 
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<IncomeModal>("Editar Receita", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task ConfirmDelete(Guid id, string description)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Title"] = "Excluir Receita",
+            ["Message"] = $"Tem certeza que deseja excluir a receita '{description}'?",
+            ["ConfirmText"] = "Sim, excluir",
+            ["ConfirmColor"] = Color.Error
+        };
+
+        var dialog = await DialogService.ShowAsync<AppConfirmDialog>("", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await DeleteIncome(id);
+        }
+    }
+
+    private async Task DeleteIncome(Guid id)
+    {
+        var success = await IncomeService.DeleteAsync(id);
+        if (success)
+        {
+            Snackbar.Add("Receita excluída com sucesso!", Severity.Success);
+            await LoadData();
+        }
+        else
+        {
+            Snackbar.Add("Erro ao excluir receita.", Severity.Error);
+        }
+    }
+
+    private Color GetRecurrenceColor(RecurrenceType recurrence) => recurrence switch
+    {
+        RecurrenceType.None => Color.Default,
+        RecurrenceType.Weekly => Color.Info,
+        RecurrenceType.Monthly => Color.Primary,
+        RecurrenceType.Yearly => Color.Warning,
+        _ => Color.Default
+    };
+
+    private string GetRecurrenceText(RecurrenceType recurrence) => recurrence switch
+    {
+        RecurrenceType.None => "Única",
+        RecurrenceType.Weekly => "Semanal",
+        RecurrenceType.Monthly => "Mensal",
+        RecurrenceType.Yearly => "Anual",
+        _ => "N/A"
+    };
+}

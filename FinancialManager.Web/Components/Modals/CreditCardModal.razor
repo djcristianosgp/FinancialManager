@@ -1,0 +1,186 @@
+@using FinancialManager.Application.Dtos
+@using MudBlazor
+@using System.Globalization
+
+@inject ICreditCardService CreditCardService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <EditForm Model="@_model" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            
+            <MudTextField @bind-Value="_model.Name"
+                         Label="Nome do Cartão"
+                         Required="true"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         Placeholder="Ex: Cartão Visa Gold"
+                         Class="mb-4" />
+            
+            <MudTextField @bind-Value="_model.Bank"
+                         Label="Banco Emissor"
+                         Required="true"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         Placeholder="Ex: Nubank, Itaú, Bradesco"
+                         Class="mb-4" />
+            
+            <MudNumericField @bind-Value="_model.Limit"
+                           Label="Limite"
+                           Required="true"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Min="0m"
+                           Step="100m"
+                           Format="C2"
+                           Culture="@_culture"
+                           Class="mb-4" />
+            
+            <MudGrid Class="mb-4">
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="_model.ClosingDay"
+                                   Label="Dia de Fechamento"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense"
+                                   Min="1"
+                                   Max="31"
+                                   HelperText="Dia do mês (1-31)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="_model.DueDay"
+                                   Label="Dia de Vencimento"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense"
+                                   Min="1"
+                                   Max="31"
+                                   HelperText="Dia do mês (1-31)" />
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex gap-2 mt-4">
+                <MudButton Color="Color.Default" 
+                          Variant="Variant.Outlined"
+                          ButtonType="ButtonType.Button"
+                          OnClick="Cancel">
+                    Cancelar
+                </MudButton>
+                <MudButton Color="Color.Warning" 
+                          Variant="Variant.Filled"
+                          ButtonType="ButtonType.Submit"
+                          Disabled="@_saving">
+                    @if (_saving)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true"/>
+                        <MudText Class="ms-2">Salvando...</MudText>
+                    }
+                    else
+                    {
+                        <text>Salvar</text>
+                    }
+                </MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+    
+    [Parameter] 
+    public Guid? CardId { get; set; }
+    
+    private CreditCardFormModel _model = new();
+    private bool _saving = false;
+    private readonly CultureInfo _culture = new("pt-BR");
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (CardId.HasValue)
+        {
+            var card = await CreditCardService.GetByIdAsync(CardId.Value);
+            if (card != null)
+            {
+                _model = new CreditCardFormModel
+                {
+                    Name = card.Name,
+                    Bank = card.Bank,
+                    Limit = card.Limit,
+                    ClosingDay = card.ClosingDay,
+                    DueDay = card.DueDay
+                };
+            }
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _saving = true;
+        try
+        {
+            if (CardId.HasValue)
+            {
+                var dto = new CreditCardUpdateDto(
+                    CardId.Value,
+                    _model.Name,
+                    _model.Bank,
+                    _model.Limit,
+                    _model.ClosingDay,
+                    _model.DueDay
+                );
+                
+                await CreditCardService.UpdateAsync(dto);
+                Snackbar.Add("Cartão de crédito atualizado com sucesso!", Severity.Success);
+            }
+            else
+            {
+                var dto = new CreditCardCreateDto(
+                    _model.Name,
+                    _model.Bank,
+                    _model.Limit,
+                    _model.ClosingDay,
+                    _model.DueDay
+                );
+                
+                await CreditCardService.CreateAsync(dto);
+                Snackbar.Add("Cartão de crédito criado com sucesso!", Severity.Success);
+            }
+            
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao salvar cartão: {ex.Message}", Severity.Error);
+            _saving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Close(DialogResult.Cancel());
+    }
+
+    private class CreditCardFormModel
+    {
+        [Required(ErrorMessage = "O nome do cartão é obrigatório")]
+        public string Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "O banco é obrigatório")]
+        public string Bank { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "O limite é obrigatório")]
+        [Range(0, double.MaxValue, ErrorMessage = "O limite não pode ser negativo")]
+        public decimal Limit { get; set; }
+
+        [Required(ErrorMessage = "O dia de fechamento é obrigatório")]
+        [Range(1, 31, ErrorMessage = "O dia deve estar entre 1 e 31")]
+        public int ClosingDay { get; set; }
+
+        [Required(ErrorMessage = "O dia de vencimento é obrigatório")]
+        [Range(1, 31, ErrorMessage = "O dia deve estar entre 1 e 31")]
+        public int DueDay { get; set; }
+    }
+}

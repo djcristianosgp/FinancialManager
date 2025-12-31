@@ -1,0 +1,210 @@
+@page "/expenses"
+@attribute [Authorize]
+@using FinancialManager.Web.Components.Modals
+@inject IExpenseService ExpenseService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<MudText Typo="Typo.h4" Class="mb-6 fw-bold">💸 Despesas</MudText>
+
+<AppCard>
+    <HeaderActions>
+        <AppButton Color="Color.Error" 
+                  StartIcon="@Icons.Material.Filled.Add"
+                  OnClick="OpenCreateDialog">
+            Nova Despesa
+        </AppButton>
+    </HeaderActions>
+    <ChildContent>
+        @if (_loading)
+        {
+            <div class="d-flex justify-content-center py-5">
+                <MudProgressCircular Indeterminate="true" />
+            </div>
+        }
+        else if (!_expenses.Any())
+        {
+            <MudAlert Severity="Severity.Info">Nenhuma despesa cadastrada.</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@_expenses" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true">
+                <HeaderContent>
+                    <MudTh>Data</MudTh>
+                    <MudTh>Descrição</MudTh>
+                    <MudTh>Categoria</MudTh>
+                    <MudTh>Pagamento</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh Style="text-align: right;">Valor</MudTh>
+                    <MudTh Style="text-align: center;">Ações</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Data">@context.Date.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd DataLabel="Descrição">@context.Description</MudTd>
+                    <MudTd DataLabel="Categoria">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">@context.Category</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Pagamento">
+                        <MudChip T="string" Size="Size.Small" Color="@GetPaymentColor(context.PaymentMethod)">
+                            @GetPaymentText(context.PaymentMethod)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Status">
+                        <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                            @GetStatusText(context.Status)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Valor" Style="text-align: right;">
+                        <MudText Typo="Typo.body2" Color="Color.Error" Class="fw-bold">
+                            @context.Amount.ToString("C", _culture)
+                        </MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Ações" Style="text-align: center;">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                      Color="Color.Primary"
+                                      Size="Size.Small"
+                                      OnClick="@(() => OpenEditDialog(context.Id))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                      Color="Color.Error"
+                                      Size="Size.Small"
+                                      OnClick="@(() => ConfirmDelete(context.Id, context.Description))" />
+                    </MudTd>
+                </RowTemplate>
+                <FooterContent>
+                    <MudTh colspan="5" Style="text-align: right;">
+                        <MudText Typo="Typo.body1" Class="fw-bold">Total:</MudText>
+                    </MudTh>
+                    <MudTh Style="text-align: right;">
+                        <MudText Typo="Typo.body1" Color="Color.Error" Class="fw-bold">
+                            @_expenses.Sum(e => e.Amount).ToString("C", _culture)
+                        </MudText>
+                    </MudTh>
+                    <MudTh></MudTh>
+                </FooterContent>
+            </MudTable>
+        }
+    </ChildContent>
+</AppCard>
+
+@code {
+    private readonly CultureInfo _culture = CultureInfo.GetCultureInfo("pt-BR");
+    private List<ExpenseListItem> _expenses = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        _expenses = await ExpenseService.GetAllAsync();
+        _loading = false;
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions 
+        { 
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<ExpenseModal>("Nova Despesa", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task OpenEditDialog(Guid id)
+    {
+        var parameters = new DialogParameters
+        {
+            ["ExpenseId"] = id
+        };
+        
+        var options = new DialogOptions 
+        { 
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<ExpenseModal>("Editar Despesa", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task ConfirmDelete(Guid id, string description)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Title"] = "Excluir Despesa",
+            ["Message"] = $"Tem certeza que deseja excluir a despesa '{description}'?",
+            ["ConfirmText"] = "Sim, excluir",
+            ["ConfirmColor"] = Color.Error
+        };
+
+        var dialog = await DialogService.ShowAsync<AppConfirmDialog>("", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await DeleteExpense(id);
+        }
+    }
+
+    private async Task DeleteExpense(Guid id)
+    {
+        var success = await ExpenseService.DeleteAsync(id);
+        if (success)
+        {
+            Snackbar.Add("Despesa excluída com sucesso!", Severity.Success);
+            await LoadData();
+        }
+        else
+        {
+            Snackbar.Add("Erro ao excluir despesa.", Severity.Error);
+        }
+    }
+
+    private Color GetPaymentColor(PaymentMethod method) => method switch
+    {
+        PaymentMethod.Cash => Color.Success,
+        PaymentMethod.Debit => Color.Info,
+        PaymentMethod.Credit => Color.Warning,
+        _ => Color.Default
+    };
+
+    private string GetPaymentText(PaymentMethod method) => method switch
+    {
+        PaymentMethod.Cash => "Dinheiro",
+        PaymentMethod.Debit => "Débito",
+        PaymentMethod.Credit => "Crédito",
+        _ => "N/A"
+    };
+
+    private Color GetStatusColor(ExpenseStatus status) => status switch
+    {
+        ExpenseStatus.Pending => Color.Warning,
+        ExpenseStatus.Paid => Color.Success,
+        _ => Color.Default
+    };
+
+    private string GetStatusText(ExpenseStatus status) => status switch
+    {
+        ExpenseStatus.Pending => "Pendente",
+        ExpenseStatus.Paid => "Pago",
+        _ => "N/A"
+    };
+}

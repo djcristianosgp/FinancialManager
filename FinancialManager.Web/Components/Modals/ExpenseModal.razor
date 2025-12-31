@@ -1,0 +1,288 @@
+@using FinancialManager.Application.Dtos
+@using FinancialManager.Domain.Enums
+@using MudBlazor
+@using System.Globalization
+
+@inject IExpenseService ExpenseService
+@inject IBankAccountService BankAccountService
+@inject ICreditCardService CreditCardService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <EditForm Model="@_model" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            
+            <MudTextField @bind-Value="_model.Description"
+                         Label="Descrição"
+                         Required="true"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         Placeholder="Ex: Conta de Luz, Mercado, Netflix"
+                         Class="mb-4" />
+            
+            <MudGrid Class="mb-4">
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="_model.Amount"
+                                   Label="Valor"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense"
+                                   Min="0.01m"
+                                   Step="0.01m"
+                                   Format="C2"
+                                   Culture="@_culture" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_model.Date"
+                                 Label="Data"
+                                 Required="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 DateFormat="dd/MM/yyyy" />
+                </MudItem>
+            </MudGrid>
+            
+            <MudTextField @bind-Value="_model.Category"
+                         Label="Categoria"
+                         Required="true"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         Placeholder="Ex: Alimentação, Transporte, Moradia"
+                         Class="mb-4" />
+            
+            <MudGrid Class="mb-4">
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="PaymentMethod" Value="_model.PaymentMethod"
+                             Label="Forma de Pagamento"
+                             Required="true"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense"
+                             ValueChanged="OnPaymentMethodChanged">
+                        <MudSelectItem T="PaymentMethod" Value="PaymentMethod.Cash">Dinheiro</MudSelectItem>
+                        <MudSelectItem T="PaymentMethod" Value="PaymentMethod.Debit">Débito</MudSelectItem>
+                        <MudSelectItem T="PaymentMethod" Value="PaymentMethod.Credit">Crédito</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="ExpenseStatus" @bind-Value="_model.Status"
+                             Label="Status"
+                             Required="true"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense">
+                        <MudSelectItem T="ExpenseStatus" Value="ExpenseStatus.Paid">Pago</MudSelectItem>
+                        <MudSelectItem T="ExpenseStatus" Value="ExpenseStatus.Pending">Pendente</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            @if (_model.PaymentMethod == PaymentMethod.Credit)
+            {
+                <MudSelect T="Guid?" @bind-Value="_model.CreditCardId"
+                         Label="Cartão de Crédito"
+                         Required="true"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         Class="mb-4">
+                    @foreach (var card in _creditCards)
+                    {
+                        <MudSelectItem T="Guid?" Value="@card.Id">
+                            @card.Name - @card.Bank
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            else if (_model.PaymentMethod == PaymentMethod.Debit || _model.PaymentMethod == PaymentMethod.Cash)
+            {
+                <MudSelect T="Guid?" @bind-Value="_model.BankAccountId"
+                         Label="Conta Bancária"
+                         Required="true"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         Class="mb-4">
+                    @foreach (var account in _bankAccounts)
+                    {
+                        <MudSelectItem T="Guid?" Value="@account.Id">
+                            @account.Bank - @account.Type
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            }
+
+            <div class="d-flex gap-2 mt-4">
+                <MudButton Color="Color.Default" 
+                          Variant="Variant.Outlined"
+                          ButtonType="ButtonType.Button"
+                          OnClick="Cancel">
+                    Cancelar
+                </MudButton>
+                <MudButton Color="Color.Error" 
+                          Variant="Variant.Filled"
+                          ButtonType="ButtonType.Submit"
+                          Disabled="@_saving">
+                    @if (_saving)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true"/>
+                        <MudText Class="ms-2">Salvando...</MudText>
+                    }
+                    else
+                    {
+                        <text>Salvar</text>
+                    }
+                </MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+    
+    [Parameter] 
+    public Guid? ExpenseId { get; set; }
+    
+    private ExpenseFormModel _model = new();
+    private List<BankAccountListItem> _bankAccounts = new();
+    private List<CreditCardListItem> _creditCards = new();
+    private bool _saving = false;
+    private readonly CultureInfo _culture = new("pt-BR");
+
+    protected override async Task OnInitializedAsync()
+    {
+        _bankAccounts = await BankAccountService.GetAllAsync();
+        _creditCards = await CreditCardService.GetAllAsync();
+        
+        if (ExpenseId.HasValue)
+        {
+            var expense = await ExpenseService.GetByIdAsync(ExpenseId.Value);
+            if (expense != null)
+            {
+                _model = new ExpenseFormModel
+                {
+                    Description = expense.Description,
+                    Amount = expense.Amount,
+                    Date = expense.Date,
+                    Category = expense.Category,
+                    PaymentMethod = expense.PaymentMethod,
+                    Status = expense.Status,
+                    BankAccountId = expense.BankAccountId,
+                    CreditCardId = expense.CreditCardId
+                };
+            }
+        }
+        else
+        {
+            _model.Date = DateTime.Now;
+            _model.Status = ExpenseStatus.Pending;
+            _model.PaymentMethod = PaymentMethod.Debit;
+        }
+    }
+
+    private void OnPaymentMethodChanged(PaymentMethod paymentMethod)
+    {
+        _model.PaymentMethod = paymentMethod;
+        
+        // Limpar seleções anteriores ao mudar forma de pagamento
+        if (paymentMethod == PaymentMethod.Credit)
+        {
+            _model.BankAccountId = null;
+        }
+        else
+        {
+            _model.CreditCardId = null;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        // Validar se o método de pagamento tem conta/cartão associado
+        if (_model.PaymentMethod == PaymentMethod.Credit && !_model.CreditCardId.HasValue)
+        {
+            Snackbar.Add("Selecione um cartão de crédito", Severity.Error);
+            return;
+        }
+        
+        if ((_model.PaymentMethod == PaymentMethod.Debit || _model.PaymentMethod == PaymentMethod.Cash) 
+            && !_model.BankAccountId.HasValue)
+        {
+            Snackbar.Add("Selecione uma conta bancária", Severity.Error);
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            if (ExpenseId.HasValue)
+            {
+                var dto = new ExpenseUpdateDto(
+                    ExpenseId.Value,
+                    _model.Description,
+                    _model.Amount,
+                    _model.Date.Value,
+                    _model.Category,
+                    _model.PaymentMethod,
+                    _model.Status,
+                    _model.BankAccountId,
+                    _model.CreditCardId
+                );
+                
+                await ExpenseService.UpdateAsync(dto);
+                Snackbar.Add("Despesa atualizada com sucesso!", Severity.Success);
+            }
+            else
+            {
+                var dto = new ExpenseCreateDto(
+                    _model.Description,
+                    _model.Amount,
+                    _model.Date.Value,
+                    _model.Category,
+                    _model.PaymentMethod,
+                    _model.Status,
+                    _model.BankAccountId,
+                    _model.CreditCardId
+                );
+                
+                await ExpenseService.CreateAsync(dto);
+                Snackbar.Add("Despesa criada com sucesso!", Severity.Success);
+            }
+            
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao salvar despesa: {ex.Message}", Severity.Error);
+            _saving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Close(DialogResult.Cancel());
+    }
+
+    private class ExpenseFormModel
+    {
+        [Required(ErrorMessage = "A descrição é obrigatória")]
+        public string Description { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "O valor é obrigatório")]
+        [Range(0.01, double.MaxValue, ErrorMessage = "O valor deve ser maior que zero")]
+        public decimal Amount { get; set; }
+
+        [Required(ErrorMessage = "A data é obrigatória")]
+        public DateTime? Date { get; set; }
+
+        [Required(ErrorMessage = "A categoria é obrigatória")]
+        public string Category { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "A forma de pagamento é obrigatória")]
+        public PaymentMethod PaymentMethod { get; set; }
+
+        [Required(ErrorMessage = "O status é obrigatório")]
+        public ExpenseStatus Status { get; set; }
+
+        public Guid? BankAccountId { get; set; }
+        public Guid? CreditCardId { get; set; }
+    }
+}

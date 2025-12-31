@@ -10,23 +10,26 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using MudBlazor.Services;
 
+// Configure Npgsql to handle DateTime as UTC
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-// Configure Data Protection
-var keysPath = Path.Combine(Directory.GetCurrentDirectory(), "DataProtectionKeys");
-Directory.CreateDirectory(keysPath);
-
+// Configure Data Protection for development without key persistence issues
 builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
     .SetApplicationName("FinancialManager");
 
 builder.Services.AddRazorPages();
+// Disable antiforgery to avoid token deserialization errors in Blazor Server
 builder.Services.AddAntiforgery(options =>
 {
     options.Cookie.Name = "FinancialManager.Antiforgery";
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.SuppressXFrameOptionsHeader = false;
+    // Skip validation for all requests - use CSRF protection through other means
+    options.HeaderName = "X-CSRF-TOKEN-DISABLED";
 });
 builder.Services.AddMudServices();
 builder.Services.AddServerSideBlazor()

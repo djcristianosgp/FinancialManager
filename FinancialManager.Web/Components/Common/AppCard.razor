@@ -3,7 +3,7 @@
 *@
 
 <MudCard Elevation="@Elevation" Class="@($"app-card {Class}")">
-    @if (!string.IsNullOrEmpty(Title) || !string.IsNullOrEmpty(Icon))
+    @if (!string.IsNullOrEmpty(Title) || !string.IsNullOrEmpty(Icon) || HeaderActions != null)
     {
         <MudCardHeader>
             <ChildContent>

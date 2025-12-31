@@ -1,0 +1,221 @@
+@page "/creditcards"
+@attribute [Authorize]
+@using FinancialManager.Web.Components.Modals
+@inject ICreditCardService CreditCardService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<MudText Typo="Typo.h4" Class="mb-6 fw-bold">💳 Cartões de Crédito</MudText>
+
+<AppCard>
+    <HeaderActions>
+        <AppButton Color="Color.Warning" 
+                  StartIcon="@Icons.Material.Filled.Add"
+                  OnClick="OpenCreateDialog">
+            Novo Cartão
+        </AppButton>
+    </HeaderActions>
+    <ChildContent>
+        @if (_loading)
+        {
+            <div class="d-flex justify-content-center py-5">
+                <MudProgressCircular Indeterminate="true" />
+            </div>
+        }
+        else if (!_cards.Any())
+        {
+            <MudAlert Severity="Severity.Info">Nenhum cartão de crédito cadastrado.</MudAlert>
+        }
+        else
+        {
+            <MudGrid>
+                @foreach (var card in _cards)
+                {
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCard Elevation="2" Class="credit-card-item">
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <MudIcon Icon="@Icons.Material.Filled.CreditCard" Color="Color.Warning" />
+                                        <MudText Typo="Typo.h6">@card.Name</MudText>
+                                    </div>
+                                </CardHeaderContent>
+                                <CardHeaderActions>
+                                    <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                                        <MudMenuItem OnClick="@(() => OpenEditDialog(card.Id))" Icon="@Icons.Material.Filled.Edit">
+                                            Editar
+                                        </MudMenuItem>
+                                        <MudDivider />
+                                        <MudMenuItem OnClick="@(() => ConfirmDelete(card.Id, card.Name))" Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error">
+                                            <MudText Color="Color.Error">Excluir</MudText>
+                                        </MudMenuItem>
+                                    </MudMenu>
+                                </CardHeaderActions>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <div class="mb-3">
+                                    <MudText Typo="Typo.caption" Color="Color.Default">Banco</MudText>
+                                    <MudText Typo="Typo.body2" Class="fw-semibold">@card.Bank</MudText>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <MudText Typo="Typo.caption" Color="Color.Default">Limite</MudText>
+                                    <MudText Typo="Typo.h6" Color="Color.Primary">
+                                        @card.Limit.ToString("C", _culture)
+                                    </MudText>
+                                </div>
+                                
+                                <MudDivider Class="my-3" />
+                                
+                                <div class="d-flex justify-content-between mb-2">
+                                    <MudText Typo="Typo.caption">Limite Disponível</MudText>
+                                    <MudText Typo="Typo.body2" Class="fw-bold" Color="Color.Success">
+                                        @card.AvailableLimit.ToString("C", _culture)
+                                    </MudText>
+                                </div>
+                                
+                                <MudProgressLinear Value="@GetUsagePercentage(card)" 
+                                                 Color="@GetUsageColor(card)" 
+                                                 Size="Size.Small"
+                                                 Class="mb-2" />
+                                
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <MudText Typo="Typo.caption">Fechamento</MudText>
+                                        <MudText Typo="Typo.body2">Dia @card.ClosingDay</MudText>
+                                    </div>
+                                    <div>
+                                        <MudText Typo="Typo.caption">Vencimento</MudText>
+                                        <MudText Typo="Typo.body2">Dia @card.DueDay</MudText>
+                                    </div>
+                                </div>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+    </ChildContent>
+</AppCard>
+
+<style>
+    .credit-card-item {
+        transition: transform 0.2s;
+    }
+    
+    .credit-card-item:hover {
+        transform: translateY(-4px);
+    }
+</style>
+
+@code {
+    private readonly CultureInfo _culture = CultureInfo.GetCultureInfo("pt-BR");
+    private List<CreditCardListItem> _cards = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        _cards = await CreditCardService.GetAllAsync();
+        _loading = false;
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions 
+        { 
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<CreditCardModal>("Novo Cartão de Crédito", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task OpenEditDialog(Guid id)
+    {
+        var parameters = new DialogParameters
+        {
+            ["CardId"] = id
+        };
+        
+        var options = new DialogOptions 
+        { 
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<CreditCardModal>("Editar Cartão de Crédito", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task ConfirmDelete(Guid id, string name)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Title"] = "Excluir Cartão de Crédito",
+            ["Message"] = $"Tem certeza que deseja excluir o cartão '{name}'?",
+            ["Details"] = "Esta ação não poderá ser desfeita se houver parcelas pendentes.",
+            ["ConfirmText"] = "Sim, excluir",
+            ["ConfirmColor"] = Color.Error
+        };
+
+        var dialog = await DialogService.ShowAsync<AppConfirmDialog>("", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await DeleteCard(id);
+        }
+    }
+
+    private async Task DeleteCard(Guid id)
+    {
+        var success = await CreditCardService.DeleteAsync(id);
+        if (success)
+        {
+            Snackbar.Add("Cartão excluído com sucesso!", Severity.Success);
+            await LoadData();
+        }
+        else
+        {
+            Snackbar.Add("Não é possível excluir cartão com parcelas pendentes.", Severity.Error);
+        }
+    }
+
+    private double GetUsagePercentage(CreditCardListItem card)
+    {
+        if (card.Limit == 0) return 0;
+        var used = card.Limit - card.AvailableLimit;
+        return (double)(used / card.Limit * 100);
+    }
+
+    private Color GetUsageColor(CreditCardListItem card)
+    {
+        var percentage = GetUsagePercentage(card);
+        return percentage switch
+        {
+            >= 90 => Color.Error,
+            >= 70 => Color.Warning,
+            _ => Color.Success
+        };
+    }
+}

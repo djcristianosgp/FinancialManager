@@ -1,0 +1,213 @@
+@using FinancialManager.Application.Dtos
+@using FinancialManager.Domain.Enums
+@using MudBlazor
+@using System.Globalization
+
+@inject IIncomeService IncomeService
+@inject IBankAccountService BankAccountService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <EditForm Model="@_model" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            
+            <MudTextField @bind-Value="_model.Description"
+                         Label="Descrição"
+                         Required="true"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         Class="mb-4" />
+            
+            <MudGrid Class="mb-4">
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="_model.Amount"
+                                   Label="Valor"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense"
+                                   Min="0.01m"
+                                   Step="0.01m"
+                                   Format="C2"
+                                   Culture="@_culture" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_model.Date"
+                                 Label="Data"
+                                 Required="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 DateFormat="dd/MM/yyyy" />
+                </MudItem>
+            </MudGrid>
+            
+            <MudTextField @bind-Value="_model.Category"
+                         Label="Categoria"
+                         Required="true"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         Placeholder="Ex: Salário, Freelance, Investimentos"
+                         Class="mb-4" />
+            
+            <MudGrid Class="mb-4">
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="Guid" @bind-Value="_model.BankAccountId"
+                             Label="Conta Bancária"
+                             Required="true"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense">
+                        @foreach (var account in _bankAccounts)
+                        {
+                            <MudSelectItem T="Guid" Value="@account.Id">
+                                @account.Bank - @account.Type
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="RecurrenceType" @bind-Value="_model.Recurrence"
+                             Label="Recorrência"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense">
+                        <MudSelectItem T="RecurrenceType" Value="RecurrenceType.None">Única</MudSelectItem>
+                        <MudSelectItem T="RecurrenceType" Value="RecurrenceType.Weekly">Semanal</MudSelectItem>
+                        <MudSelectItem T="RecurrenceType" Value="RecurrenceType.Monthly">Mensal</MudSelectItem>
+                        <MudSelectItem T="RecurrenceType" Value="RecurrenceType.Yearly">Anual</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex gap-2 mt-4">
+                <MudButton Color="Color.Default" 
+                          Variant="Variant.Outlined"
+                          ButtonType="ButtonType.Button"
+                          OnClick="Cancel">
+                    Cancelar
+                </MudButton>
+                <MudButton Color="Color.Success" 
+                          Variant="Variant.Filled"
+                          ButtonType="ButtonType.Submit"
+                          Disabled="@_saving">
+                    @if (_saving)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true"/>
+                        <MudText Class="ms-2">Salvando...</MudText>
+                    }
+                    else
+                    {
+                        <text>Salvar</text>
+                    }
+                </MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+    
+    [Parameter] 
+    public Guid? IncomeId { get; set; }
+    
+    private IncomeFormModel _model = new();
+    private List<BankAccountListItem> _bankAccounts = new();
+    private bool _saving = false;
+    private readonly CultureInfo _culture = new("pt-BR");
+
+    protected override async Task OnInitializedAsync()
+    {
+        _bankAccounts = await BankAccountService.GetAllAsync();
+        
+        if (IncomeId.HasValue)
+        {
+            var income = await IncomeService.GetByIdAsync(IncomeId.Value);
+            if (income != null)
+            {
+                _model = new IncomeFormModel
+                {
+                    Description = income.Description,
+                    Amount = income.Amount,
+                    Date = income.Date,
+                    Category = income.Category,
+                    BankAccountId = income.BankAccountId,
+                    Recurrence = income.Recurrence
+                };
+            }
+        }
+        else
+        {
+            _model.Date = DateTime.Now;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _saving = true;
+        try
+        {
+            if (IncomeId.HasValue)
+            {
+                var dto = new IncomeUpdateDto(
+                    IncomeId.Value,
+                    _model.Description,
+                    _model.Amount,
+                    _model.Date.Value,
+                    _model.Category,
+                    _model.BankAccountId,
+                    _model.Recurrence
+                );
+                
+                await IncomeService.UpdateAsync(dto);
+                Snackbar.Add("Receita atualizada com sucesso!", Severity.Success);
+            }
+            else
+            {
+                var dto = new IncomeCreateDto(
+                    _model.Description,
+                    _model.Amount,
+                    _model.Date.Value,
+                    _model.Category,
+                    _model.BankAccountId,
+                    _model.Recurrence
+                );
+                
+                await IncomeService.CreateAsync(dto);
+                Snackbar.Add("Receita criada com sucesso!", Severity.Success);
+            }
+            
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao salvar receita: {ex.Message}", Severity.Error);
+            _saving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Close(DialogResult.Cancel());
+    }
+
+    private class IncomeFormModel
+    {
+        [Required(ErrorMessage = "A descrição é obrigatória")]
+        public string Description { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "O valor é obrigatório")]
+        [Range(0.01, double.MaxValue, ErrorMessage = "O valor deve ser maior que zero")]
+        public decimal Amount { get; set; }
+
+        [Required(ErrorMessage = "A data é obrigatória")]
+        public DateTime? Date { get; set; }
+
+        [Required(ErrorMessage = "A categoria é obrigatória")]
+        public string Category { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "A conta bancária é obrigatória")]
+        public Guid BankAccountId { get; set; }
+
+        public RecurrenceType Recurrence { get; set; }
+    }
+}

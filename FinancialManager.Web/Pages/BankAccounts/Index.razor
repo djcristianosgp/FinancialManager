@@ -1,0 +1,194 @@
+@page "/bankaccounts"
+@attribute [Authorize]
+@using FinancialManager.Web.Components.Modals
+@inject IBankAccountService BankAccountService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<MudText Typo="Typo.h4" Class="mb-6 fw-bold">🏦 Contas Bancárias</MudText>
+
+<AppCard>
+    <HeaderActions>
+        <AppButton Color="Color.Primary" 
+                  StartIcon="@Icons.Material.Filled.Add"
+                  OnClick="OpenCreateDialog">
+            Nova Conta
+        </AppButton>
+    </HeaderActions>
+    <ChildContent>
+        @if (_loading)
+        {
+            <div class="d-flex justify-content-center py-5">
+                <MudProgressCircular Indeterminate="true" />
+            </div>
+        }
+        else if (!_accounts.Any())
+        {
+            <MudAlert Severity="Severity.Info">Nenhuma conta bancária cadastrada.</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@_accounts" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true">
+                <HeaderContent>
+                    <MudTh>Banco</MudTh>
+                    <MudTh>Tipo</MudTh>
+                    <MudTh Style="text-align: right;">Saldo</MudTh>
+                    <MudTh Style="text-align: center;">Ações</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Banco">
+                        <div class="d-flex align-items-center gap-2">
+                            <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Color="Color.Primary" Size="Size.Small" />
+                            <MudText Typo="Typo.body2" Class="fw-semibold">@context.Bank</MudText>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="Tipo">
+                        <MudChip T="string" Size="Size.Small" Color="@GetAccountTypeColor(context.Type)">
+                            @GetAccountTypeText(context.Type)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Saldo" Style="text-align: right;">
+                        <MudText Typo="Typo.body2" Color="@(context.Balance >= 0 ? Color.Success : Color.Error)" Class="fw-bold">
+                            @context.Balance.ToString("C", _culture)
+                        </MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Ações" Style="text-align: center;">
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                      Color="Color.Info"
+                                      Size="Size.Small"
+                                      Href="@($"/bankaccounts/details/{context.Id}")" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                      Color="Color.Primary"
+                                      Size="Size.Small"
+                                      OnClick="@(() => OpenEditDialog(context.Id))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                      Color="Color.Error"
+                                      Size="Size.Small"
+                                      OnClick="@(() => ConfirmDelete(context.Id, context.Bank))" />
+                    </MudTd>
+                </RowTemplate>
+                <FooterContent>
+                    <MudTh colspan="2" Style="text-align: right;">
+                        <MudText Typo="Typo.body1" Class="fw-bold">Total:</MudText>
+                    </MudTh>
+                    <MudTh Style="text-align: right;">
+                        <MudText Typo="Typo.body1" Color="@(_accounts.Sum(a => a.Balance) >= 0 ? Color.Success : Color.Error)" Class="fw-bold">
+                            @_accounts.Sum(a => a.Balance).ToString("C", _culture)
+                        </MudText>
+                    </MudTh>
+                    <MudTh></MudTh>
+                </FooterContent>
+            </MudTable>
+        }
+    </ChildContent>
+</AppCard>
+
+@code {
+    private readonly CultureInfo _culture = CultureInfo.GetCultureInfo("pt-BR");
+    private List<BankAccountListItem> _accounts = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        _accounts = await BankAccountService.GetAllAsync();
+        _loading = false;
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions 
+        { 
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<BankAccountModal>("Nova Conta Bancária", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task OpenEditDialog(Guid id)
+    {
+        var parameters = new DialogParameters
+        {
+            ["AccountId"] = id
+        };
+        
+        var options = new DialogOptions 
+        { 
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<BankAccountModal>("Editar Conta Bancária", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task ConfirmDelete(Guid id, string bank)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Title"] = "Excluir Conta Bancária",
+            ["Message"] = $"Tem certeza que deseja excluir a conta '{bank}'?",
+            ["Details"] = "Esta ação não poderá ser desfeita se a conta tiver movimentações.",
+            ["ConfirmText"] = "Sim, excluir",
+            ["ConfirmColor"] = Color.Error
+        };
+
+        var dialog = await DialogService.ShowAsync<AppConfirmDialog>("", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await DeleteAccount(id);
+        }
+    }
+
+    private async Task DeleteAccount(Guid id)
+    {
+        var success = await BankAccountService.DeleteAsync(id);
+        if (success)
+        {
+            Snackbar.Add("Conta excluída com sucesso!", Severity.Success);
+            await LoadData();
+        }
+        else
+        {
+            Snackbar.Add("Não é possível excluir conta com movimentações.", Severity.Error);
+        }
+    }
+
+    private Color GetAccountTypeColor(AccountType type) => type switch
+    {
+        AccountType.Checking => Color.Primary,
+        AccountType.Savings => Color.Success,
+        AccountType.Digital => Color.Info,
+        _ => Color.Default
+    };
+
+    private string GetAccountTypeText(AccountType type) => type switch
+    {
+        AccountType.Checking => "Corrente",
+        AccountType.Savings => "Poupança",
+        AccountType.Digital => "Digital",
+        _ => "N/A"
+    };
+}
