@@ -1,12 +1,36 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: financialmanager-postgres
+    environment:
+      - POSTGRES_DB=financialmanager
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   financialmanager:
     build: .
+    container_name: financialmanager-app
     ports:
       - "8080:8080"
-    volumes:
-      - ./Data:/app/Data
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - DOTNET_RUNNING_IN_CONTAINER=true
       - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Default=Host=postgres;Database=financialmanager;Username=postgres;Password=postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  postgres_data:

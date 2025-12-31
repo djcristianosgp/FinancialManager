@@ -10,17 +10,11 @@ public static class DataSeeder
 {
     public static async Task SeedAsync(ApplicationDbContext db, UserManager<ApplicationUser> userManager, CancellationToken cancellationToken = default)
     {
-         try
-         {
-             await db.Database.MigrateAsync(cancellationToken);
-         }
-         catch (Exception ex) when (ex.Message.Contains("already exists"))
-         {
-             // Migration already applied, continue
-         }
- 
-         var adminEmail = "admin@admin.com";
-         var adminPassword = "123456";
+        // Ensure database is created and migrations are applied
+        await db.Database.MigrateAsync(cancellationToken);
+
+        var adminEmail = "admin@admin.com";
+        var adminPassword = "123456";
  
          var admin = await userManager.FindByEmailAsync(adminEmail);
          if (admin == null)

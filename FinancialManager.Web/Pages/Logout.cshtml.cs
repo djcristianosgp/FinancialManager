@@ -1,12 +1,22 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using FinancialManager.Infrastructure.Identity;
 
 namespace FinancialManager.Web.Pages;
 
 public class LogoutModel : PageModel
 {
-    public IActionResult OnGet()
+    private readonly SignInManager<ApplicationUser> _signInManager;
+
+    public LogoutModel(SignInManager<ApplicationUser> signInManager)
     {
+        _signInManager = signInManager;
+    }
+
+    public async Task<IActionResult> OnGetAsync()
+    {
+        await _signInManager.SignOutAsync();
         return RedirectToPage("/Login");
     }
 }

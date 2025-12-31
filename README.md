@@ -32,7 +32,7 @@ O projeto oferece controle de despesas, receitas, cartões de crédito e contas 
 - **Blazor Server** - Interface web interativa
 - **Entity Framework Core** - ORM para persistência de dados
 - **ASP.NET Identity** - Sistema de autenticação e autorização
-- **SQLite** - Banco de dados leve e portátil
+- **PostgreSQL** - Banco de dados relacional robusto e escalável
 
 ### Frontend
 - **Blazor Components** - Componentes reativos
@@ -122,7 +122,8 @@ FinancialManager/
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 - [Visual Studio 2022](https://visualstudio.microsoft.com/) ou [VS Code](https://code.visualstudio.com/)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop) (opcional, para rodar com Docker)
+- [PostgreSQL 16](https://www.postgresql.org/download/) (para execução local)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) (recomendado, para rodar com Docker)
 
 ### 🏃 Execução Local
 
@@ -132,34 +133,40 @@ git clone https://github.com/seu-usuario/FinancialManager.git
 cd FinancialManager
 ```
 
-2. **Restaure as dependências**
+2. **Configure o PostgreSQL**
+   - Instale o PostgreSQL
+   - Crie um banco chamado `financialmanager`
+   - Atualize a connection string em `appsettings.json` se necessário
+
+3. **Restaure as dependências**
 ```bash
 dotnet restore
 ```
 
-3. **Execute as migrations**
+4. **Execute as migrations**
 ```bash
-cd FinancialManager.Web
-dotnet ef database update --project ../FinancialManager.Infrastructure
+cd FinancialManager.Infrastructure
+dotnet ef database update --startup-project ../FinancialManager.Web
 ```
 
-4. **Execute a aplicação**
+5. **Execute a aplicação**
 ```bash
-dotnet run --project FinancialManager.Web
+cd ../FinancialManager.Web
+dotnet run
 ```
 
-5. **Acesse no navegador**
+6. **Acesse no navegador**
 ```
 https://localhost:5001
 ```
 
-### 🐳 Execução com Docker
+### 🐳 Execução com Docker (Recomendado)
 
-A forma mais simples de rodar o projeto é usando Docker:
+A forma mais simples de rodar o projeto é usando Docker Compose, que já inclui PostgreSQL configurado:
 
 1. **Build e execução**
 ```bash
-docker-compose up -d
+docker-compose up -d --build
 ```
 
 2. **Acesse no navegador**
@@ -167,10 +174,43 @@ docker-compose up -d
 http://localhost:8080
 ```
 
-3. **Para parar os containers**
+3. **Verificar logs**
+```bash
+# Logs da aplicação
+docker logs financialmanager-app
+
+# Logs do PostgreSQL
+docker logs financialmanager-postgres
+```
+
+4. **Parar os containers**
 ```bash
 docker-compose down
 ```
+
+5. **Parar e remover volumes (limpar banco de dados)**
+```bash
+docker-compose down -v
+```
+
+### 🗄️ Acesso ao PostgreSQL
+
+Para acessar o banco de dados PostgreSQL diretamente:
+
+```bash
+# Via Docker
+docker exec -it financialmanager-postgres psql -U postgres -d financialmanager
+
+# Via cliente local (se PostgreSQL instalado)
+psql -h localhost -p 5432 -U postgres -d financialmanager
+```
+
+**Credenciais do PostgreSQL:**
+- Host: `localhost` (ou `postgres` dentro do Docker)
+- Port: `5432`
+- Database: `financialmanager`
+- Username: `postgres`
+- Password: `postgres`
 
 ### 📝 Credenciais Padrão
 
@@ -240,11 +280,12 @@ A interface foi desenvolvida com foco em:
 - ✅ Proteção de rotas com `[Authorize]`
 - ✅ Senhas criptografadas
 - ✅ Data Protection configurado
-- ✅ HTTPS habilitado
+- ✅ HTTPS habilitado (local)
+- ✅ PostgreSQL com conexões seguras
 
 ---
 
-## 📦 Estrutura de Dados
+## 📦 Estrutura de Dados (PostgreSQL)
 
 ### Principais Entidades
 

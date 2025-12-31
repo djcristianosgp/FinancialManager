@@ -9,17 +9,13 @@ using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.DataProtection;
 
-// Criar diretórios necessários ANTES de qualquer lógica de app
-var contentRootPath = Directory.GetCurrentDirectory();
-var dataPath = Path.Combine(contentRootPath, "Data");
-var keysPath = Path.Combine(dataPath, "keys");
-Directory.CreateDirectory(dataPath);
-Directory.CreateDirectory(keysPath);
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-// Configure Data Protection with a persistent key
+// Configure Data Protection
+var keysPath = Path.Combine(Directory.GetCurrentDirectory(), "DataProtectionKeys");
+Directory.CreateDirectory(keysPath);
+
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
     .SetApplicationName("FinancialManager");

@@ -7,6 +7,63 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [1.1.0] - 2025-12-31
+
+### 🔄 Modificado
+
+#### Migração para PostgreSQL
+- **BREAKING CHANGE**: Substituído SQLite por PostgreSQL
+- Atualizado `Npgsql.EntityFrameworkCore.PostgreSQL` v8.0.0
+- Removido `Microsoft.EntityFrameworkCore.Sqlite`
+- Nova connection string: `Host=postgres;Database=financialmanager;Username=postgres;Password=postgres`
+
+#### Docker Compose
+- Adicionado container PostgreSQL 16 Alpine
+- Configurado healthcheck para PostgreSQL
+- Dependency entre aplicação e banco de dados
+- Volume persistente `postgres_data` para dados do PostgreSQL
+- Removido volume `./Data` (não mais necessário)
+
+#### Migrations
+- Removidas migrations antigas do SQLite
+- Criada nova migration `InitialPostgreSQL` para PostgreSQL
+- Estrutura de tabelas otimizada para PostgreSQL
+
+#### Configuração
+- Removida lógica específica do SQLite no `DependencyInjection.cs`
+- Atualizado `appsettings.json` com connection string PostgreSQL
+- Simplificado `Program.cs` (removido gerenciamento de diretório Data)
+
+### ✨ Adicionado
+
+#### PostgreSQL
+- Container PostgreSQL 16 Alpine no docker-compose
+- Porta 5432 exposta para acesso externo
+- Credenciais padrão: postgres/postgres
+- Database: financialmanager
+- Volume persistente para dados
+
+#### Documentação
+- Instruções de acesso ao PostgreSQL no README
+- Comandos para verificar banco de dados
+- Credenciais e connection strings atualizadas
+
+### 🗑️ Removido
+- Dependência do SQLite
+- Pasta `Data/` para banco SQLite
+- Migrations antigas do SQLite
+- Código específico para gerenciamento de caminho SQLite
+
+### 🎯 Benefícios da Migração
+- ✅ Banco de dados mais robusto e escalável
+- ✅ Melhor performance em operações complexas
+- ✅ Suporte a transações avançadas
+- ✅ Pronto para produção
+- ✅ Melhor suporte a tipos de dados
+- ✅ Backup e recovery mais confiáveis
+
+---
+
 ## [1.0.0] - 2025-12-31
 
 ### ✨ Adicionado
