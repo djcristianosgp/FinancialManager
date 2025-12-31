@@ -5,130 +5,239 @@
 @using System.Globalization
 @inject FinancialManager.Application.Services.IDashboardService DashboardService
 
-<h1 class="mb-4">Dashboard</h1>
+<MudText Typo="Typo.h4" Class="mb-6 fw-bold">Dashboard</MudText>
 
-<div class="card-grid mb-4">
-    @foreach (var metric in Metrics)
-    {
-        <div class="metric-card">
-            <h3>@metric.Label</h3>
-            <div class="value">@metric.Value</div>
-            <div class="text-secondary" style="color: var(--muted); font-size: 0.85rem;">@metric.Description</div>
-        </div>
-    }
-</div>
+@* Stat Cards Grid *@
+<MudGrid Class="mb-6">
+    <MudItem xs="12" sm="6" md="3">
+        <AppStatCard Label="Saldo Total"
+                    Value="@_metrics.TotalBalance"
+                    Icon="@Icons.Material.Filled.AccountBalance"
+                    Variant="Color.Primary"
+                    Trend="+5.2% este mês"
+                    TrendPositive="true" />
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="3">
+        <AppStatCard Label="Receitas do Mês"
+                    Value="@_metrics.MonthlyIncome"
+                    Icon="@Icons.Material.Filled.TrendingUp"
+                    Variant="Color.Success"
+                    Trend="+12.5%"
+                    TrendPositive="true" />
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="3">
+        <AppStatCard Label="Despesas do Mês"
+                    Value="@_metrics.MonthlyExpenses"
+                    Icon="@Icons.Material.Filled.TrendingDown"
+                    Variant="Color.Error"
+                    Trend="-3.2%"
+                    TrendPositive="true" />
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="3">
+        <AppStatCard Label="Uso do Crédito"
+                    Value="@_metrics.CreditUsagePercent"
+                    Icon="@Icons.Material.Filled.CreditCard"
+                    Variant="Color.Info"
+                    Trend="@GetCreditTrend()"
+                    TrendPositive="@(_creditUsage.CurrentPercentage < 80)" />
+    </MudItem>
+</MudGrid>
 
-<div class="row g-3">
-    <div class="col-lg-8">
-        <div class="panel mb-3">
-            <h2>Expenses by category</h2>
-            <div class="mt-3">
-                @foreach (var category in CategoryBreakdown)
-                {
-                    <div class="mb-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span>@category.Name</span>
-                            <span class="badge">@category.Amount.ToString("C", _culture)</span>
-                        </div>
-                        <div class="progress" style="height: 8px; background: rgba(255,255,255,0.05);">
-                            <div class="progress-bar" role="progressbar" style=$"width: {category.Percentage}%; background: #22c55e;" aria-valuenow="@category.Percentage" aria-valuemin="0" aria-valuemax="100"></div>
-                        </div>
-                    </div>
-                }
-            </div>
-        </div>
-
-        <div class="panel">
-            <h2>Recent movements</h2>
-            <table class="table-lite">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Title</th>
-                        <th>Category</th>
-                        <th>Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var movement in RecentMovements)
+<MudGrid>
+    @* Expenses by Category Card *@
+    <MudItem xs="12" md="8">
+        <AppCard Title="Despesas por Categoria" 
+                Icon="@Icons.Material.Filled.PieChart"
+                IconColor="Color.Primary">
+            @if (_categoryBreakdown.Any())
+            {
+                <MudStack Spacing="3">
+                    @foreach (var category in _categoryBreakdown)
                     {
-                        <tr>
-                            <td>@movement.Date.ToShortDateString()</td>
-                            <td>@movement.Title</td>
-                            <td>@movement.Category</td>
-                            <td class="fw-bold">@movement.Amount.ToString("C", _culture)</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div class="col-lg-4">
-        <div class="panel mb-3">
-            <h2>Upcoming invoices</h2>
-            <ul class="list-unstyled m-0">
-                @foreach (var invoice in UpcomingInvoices)
-                {
-                    <li class="d-flex justify-content-between align-items-center py-2 border-bottom" style="border-color: rgba(255,255,255,0.06);">
                         <div>
-                            <div class="fw-semibold">@invoice.CardName</div>
-                            <small style="color: var(--muted);">Due @invoice.DueDate.ToShortDateString()</small>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <MudText Typo="Typo.body1">@category.Name</MudText>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Success">
+                                    @category.Amount.ToString("C", _culture)
+                                </MudChip>
+                            </div>
+                            <MudProgressLinear Value="@category.Percentage" 
+                                             Color="Color.Primary" 
+                                             Size="Size.Medium"
+                                             Class="rounded" />
                         </div>
-                        <span class="badge">@invoice.Amount.ToString("C", _culture)</span>
-                    </li>
+                    }
+                </MudStack>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">Nenhuma despesa registrada este mês.</MudAlert>
+            }
+        </AppCard>
+        
+        @* Recent Movements Card *@
+        <AppCard Title="Movimentações Recentes" 
+                Icon="@Icons.Material.Filled.Receipt"
+                IconColor="Color.Secondary"
+                Class="mt-4">
+            @if (_recentMovements.Any())
+            {
+                <MudTable Items="@_recentMovements" 
+                         Hover="true" 
+                         Dense="true"
+                         Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Data</MudTh>
+                        <MudTh>Título</MudTh>
+                        <MudTh>Categoria</MudTh>
+                        <MudTh Style="text-align: right;">Valor</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Data">@context.Date.ToShortDateString()</MudTd>
+                        <MudTd DataLabel="Título">@context.Title</MudTd>
+                        <MudTd DataLabel="Categoria">
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.Category</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Valor" Style="text-align: right;">
+                            <MudText Typo="Typo.body2" Class="fw-bold" Color="@(context.Amount > 0 ? Color.Success : Color.Error)">
+                                @context.Amount.ToString("C", _culture)
+                            </MudText>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">Nenhuma movimentação recente.</MudAlert>
+            }
+        </AppCard>
+    </MudItem>
+    
+    @* Sidebar Cards *@
+    <MudItem xs="12" md="4">
+        @* Upcoming Invoices Card *@
+        <AppCard Title="Próximas Faturas" 
+                Icon="@Icons.Material.Filled.CalendarMonth"
+                IconColor="Color.Warning">
+            @if (_upcomingInvoices.Any())
+            {
+                <MudList T="string" Dense="true">
+                    @foreach (var invoice in _upcomingInvoices)
+                    {
+                        <MudListItem T="string">
+                            <div class="d-flex justify-content-between align-items-center w-100">
+                                <div>
+                                    <MudText Typo="Typo.body2" Class="fw-semibold">@invoice.CardName</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Default">
+                                        Vence em @invoice.DueDate.ToShortDateString()
+                                    </MudText>
+                                </div>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning">
+                                    @invoice.Amount.ToString("C", _culture)
+                                </MudChip>
+                            </div>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                </MudList>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Success">Nenhuma fatura próxima do vencimento.</MudAlert>
+            }
+        </AppCard>
+        
+        @* Credit Usage Card *@
+        <AppCard Title="Uso do Crédito" 
+                Icon="@Icons.Material.Filled.Analytics"
+                IconColor="Color.Info"
+                Class="mt-4">
+            <MudStack Spacing="2">
+                <MudText Typo="Typo.body2">Fatura Atual</MudText>
+                <MudProgressLinear Value="@_creditUsage.CurrentPercentage" 
+                                 Color="@GetCreditColor()"
+                                 Size="Size.Large"
+                                 Class="rounded" />
+                <div class="d-flex justify-content-between">
+                    <MudText Typo="Typo.body2" Class="fw-bold">
+                        @_creditUsage.CurrentAmount.ToString("C", _culture)
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Default">
+                        de @_creditUsage.Limit.ToString("C", _culture)
+                    </MudText>
+                </div>
+                
+                @if (_creditUsage.CurrentPercentage >= 80)
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">
+                        Atenção: Limite próximo do máximo
+                    </MudAlert>
                 }
-            </ul>
-        </div>
-
-        <div class="panel">
-            <h2>Credit usage</h2>
-            <div class="mb-2">Current invoice</div>
-            <div class="progress" style="height: 10px; background: rgba(255,255,255,0.05);">
-                <div class="progress-bar" role="progressbar" style=$"width: {CreditUsage.CurrentPercentage}%; background: #22c55e;" aria-valuenow="@CreditUsage.CurrentPercentage" aria-valuemin="0" aria-valuemax="100"></div>
-            </div>
-            <div class="mt-2 text-end">@CreditUsage.CurrentAmount.ToString("C", _culture) of @CreditUsage.Limit.ToString("C", _culture)</div>
-        </div>
-    </div>
-</div>
+            </MudStack>
+        </AppCard>
+    </MudItem>
+</MudGrid>
 
 @code {
     private readonly CultureInfo _culture = CultureInfo.GetCultureInfo("pt-BR");
 
-    private IReadOnlyList<Metric> Metrics { get; set; } = Array.Empty<Metric>();
-    private IReadOnlyList<CategorySummary> CategoryBreakdown { get; set; } = Array.Empty<CategorySummary>();
-    private IReadOnlyList<Movement> RecentMovements { get; set; } = Array.Empty<Movement>();
-    private IReadOnlyList<Invoice> UpcomingInvoices { get; set; } = Array.Empty<Invoice>();
-    private CreditUsageSummary CreditUsage { get; set; } = new(0, 0, 0);
+    private MetricsSummary _metrics = new("R$ 0,00", "R$ 0,00", "R$ 0,00", "0%");
+    private IReadOnlyList<CategorySummary> _categoryBreakdown = Array.Empty<CategorySummary>();
+    private IReadOnlyList<Movement> _recentMovements = Array.Empty<Movement>();
+    private IReadOnlyList<Invoice> _upcomingInvoices = Array.Empty<Invoice>();
+    private CreditUsageSummary _creditUsage = new(0, 0, 0);
 
     protected override async Task OnInitializedAsync()
     {
         var summary = await DashboardService.GetSummaryAsync(DateTime.UtcNow);
 
-        Metrics = new List<Metric>
-        {
-            new("Total balance", summary.Metrics.TotalBalance.ToString("C", _culture), "Across all bank accounts"),
-            new("Monthly income", summary.Metrics.MonthlyIncome.ToString("C", _culture), "Confirmed inflows"),
-            new("Monthly expenses", summary.Metrics.MonthlyExpenses.ToString("C", _culture), "Paid and pending"),
-            new("Credit usage", $"{summary.Metrics.CreditUsagePercent}%", "Current billing cycle")
-        };
+        _metrics = new MetricsSummary(
+            summary.Metrics.TotalBalance.ToString("C", _culture),
+            summary.Metrics.MonthlyIncome.ToString("C", _culture),
+            summary.Metrics.MonthlyExpenses.ToString("C", _culture),
+            $"{summary.Metrics.CreditUsagePercent:F1}%"
+        );
 
-        CategoryBreakdown = summary.Categories
+        _categoryBreakdown = summary.Categories
             .Select(c => new CategorySummary(c.Name, c.Amount, (int)c.Percentage))
             .ToList();
 
-        RecentMovements = summary.RecentMovements
+        _recentMovements = summary.RecentMovements
             .Select(m => new Movement(m.Date, m.Title, m.Category, m.Amount))
             .ToList();
 
-        UpcomingInvoices = summary.UpcomingInvoices
+        _upcomingInvoices = summary.UpcomingInvoices
             .Select(i => new Invoice(i.CardName, i.DueDate, i.Amount))
             .ToList();
 
-        CreditUsage = new CreditUsageSummary(summary.CreditUsage.CurrentAmount, summary.CreditUsage.Limit, (int)summary.CreditUsage.CurrentPercentage);
+        _creditUsage = new CreditUsageSummary(
+            summary.CreditUsage.CurrentAmount, 
+            summary.CreditUsage.Limit, 
+            (int)summary.CreditUsage.CurrentPercentage
+        );
     }
 
-    private record Metric(string Label, string Value, string Description);
+    private string GetCreditTrend()
+    {
+        return _creditUsage.CurrentPercentage >= 80 
+            ? "Limite elevado" 
+            : "Uso normal";
+    }
+
+    private Color GetCreditColor()
+    {
+        return _creditUsage.CurrentPercentage switch
+        {
+            >= 90 => Color.Error,
+            >= 70 => Color.Warning,
+            _ => Color.Success
+        };
+    }
+
+    private record MetricsSummary(string TotalBalance, string MonthlyIncome, string MonthlyExpenses, string CreditUsagePercent);
     private record CategorySummary(string Name, decimal Amount, int Percentage);
     private record Movement(DateTime Date, string Title, string Category, decimal Amount);
     private record Invoice(string CardName, DateTime DueDate, decimal Amount);

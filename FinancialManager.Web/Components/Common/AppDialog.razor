@@ -1,0 +1,72 @@
+@* 
+    Componente de Dialog padronizado com botões de ação
+*@
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-items-center gap-2">
+            @if (!string.IsNullOrEmpty(Icon))
+            {
+                <MudIcon Icon="@Icon" Color="@IconColor" />
+            }
+            <MudText Typo="Typo.h6">@Title</MudText>
+        </div>
+    </TitleContent>
+    
+    <DialogContent>
+        @ChildContent
+    </DialogContent>
+    
+    <DialogActions>
+        @if (ShowCancelButton)
+        {
+            <AppButton Color="Color.Default" 
+                      ButtonVariant="Variant.Text"
+                      OnClick="@OnCancel">
+                @CancelText
+            </AppButton>
+        }
+        
+        @if (ShowConfirmButton)
+        {
+            <AppButton Color="@ConfirmColor" 
+                      Loading="@Loading"
+                      OnClick="@OnConfirm">
+                @ConfirmText
+            </AppButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudBlazor.IDialogReference? MudDialog { get; set; }
+    
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public Color IconColor { get; set; } = Color.Primary;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    
+    [Parameter] public bool ShowCancelButton { get; set; } = true;
+    [Parameter] public string CancelText { get; set; } = "Cancelar";
+    
+    [Parameter] public bool ShowConfirmButton { get; set; } = true;
+    [Parameter] public string ConfirmText { get; set; } = "Confirmar";
+    [Parameter] public Color ConfirmColor { get; set; } = Color.Primary;
+    
+    [Parameter] public bool Loading { get; set; }
+    
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private async Task HandleCancel()
+    {
+        await OnCancel.InvokeAsync();
+        MudDialog?.Close(DialogResult.Cancel());
+    }
+
+    private async Task HandleConfirm()
+    {
+        await OnConfirm.InvokeAsync();
+        MudDialog?.Close(DialogResult.Ok(true));
+    }
+}

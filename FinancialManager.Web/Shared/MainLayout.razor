@@ -1,17 +1,92 @@
 @inherits LayoutComponentBase
+@using FinancialManager.Web.Theme
 
-<PageTitle>Financial Manager</PageTitle>
+<MudThemeProvider Theme="@AppTheme.DefaultTheme" IsDarkMode="@_isDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
-    <main>
-        <div class="top-row px-4">
-            <h1 class="fs-4 m-0">Financial Manager</h1>
-        </div>
-        <div class="content px-4">
+<MudLayout>
+    <MudAppBar Elevation="1" Dense="true">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        <MudText Typo="Typo.h6" Class="ml-3">@_pageTitle</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" 
+                       Color="Color.Inherit" 
+                       OnClick="@ToggleDarkMode" />
+        <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" Dense="true">
+            <MudMenuItem Icon="@Icons.Material.Filled.Person">Perfil</MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Filled.Settings">Configurações</MudMenuItem>
+            <MudDivider />
+            <MudMenuItem Icon="@Icons.Material.Filled.Logout" Href="/logout">Sair</MudMenuItem>
+        </MudMenu>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" 
+               Elevation="2" 
+               Variant="@DrawerVariant.Mini" 
+               OpenMiniOnHover="true" 
+               ClipMode="DrawerClipMode.Always">
+        <MudDrawerHeader>
+            <MudText Typo="Typo.h6" Class="fw-bold">
+                <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Size="Size.Large" Class="mr-2" />
+                <span style="@(_drawerOpen ? "" : "display:none")">Financial</span>
+            </MudText>
+        </MudDrawerHeader>
+        
+        <MudNavMenu>
+            <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+                Dashboard
+            </MudNavLink>
+            
+            <MudNavGroup Title="Transações" Icon="@Icons.Material.Filled.SwapVert" Expanded="false">
+                <MudNavLink Href="/incomes" Icon="@Icons.Material.Filled.TrendingUp">
+                    Receitas
+                </MudNavLink>
+                <MudNavLink Href="/expenses" Icon="@Icons.Material.Filled.TrendingDown">
+                    Despesas
+                </MudNavLink>
+            </MudNavGroup>
+            
+            <MudNavLink Href="/bankaccounts" Icon="@Icons.Material.Filled.AccountBalance">
+                Contas Bancárias
+            </MudNavLink>
+            
+            <MudNavLink Href="/creditcards" Icon="@Icons.Material.Filled.CreditCard">
+                Cartões de Crédito
+            </MudNavLink>
+            
+            <MudDivider Class="my-2" />
+            
+            <MudNavLink Href="/reports" Icon="@Icons.Material.Filled.Assessment">
+                Relatórios
+            </MudNavLink>
+            
+            <MudNavLink Href="/settings" Icon="@Icons.Material.Filled.Settings">
+                Configurações
+            </MudNavLink>
+        </MudNavMenu>
+    </MudDrawer>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4 mb-4">
             @Body
-        </div>
-    </main>
-</div>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+    private bool _isDarkMode = true;
+    private string _pageTitle = "Dashboard";
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void ToggleDarkMode()
+    {
+        _isDarkMode = !_isDarkMode;
+    }
+}

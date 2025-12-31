@@ -1,0 +1,101 @@
+@* 
+    Componente de Card Estatístico com valor, label, ícone e gradiente
+*@
+
+<MudCard Elevation="2" Class="@($"stat-card stat-card-{Variant.ToString().ToLower()} {Class}")">
+    <MudCardContent>
+        <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+                <MudText Typo="Typo.body2" Color="Color.Default" Class="mb-1">
+                    @Label
+                </MudText>
+                <MudText Typo="Typo.h4" Class="fw-bold mb-2">
+                    @Value
+                </MudText>
+                
+                @if (!string.IsNullOrEmpty(Trend))
+                {
+                    <div class="d-flex align-items-center gap-1">
+                        <MudIcon Icon="@GetTrendIcon()" 
+                                 Size="Size.Small" 
+                                 Color="@GetTrendColor()" />
+                        <MudText Typo="Typo.body2" Color="@GetTrendColor()">
+                            @Trend
+                        </MudText>
+                    </div>
+                }
+            </div>
+            
+            <div class="stat-icon-wrapper">
+                <MudIcon Icon="@Icon" Size="Size.Large" Color="Color.Surface" />
+            </div>
+        </div>
+    </MudCardContent>
+</MudCard>
+
+<style>
+    .stat-card {
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.2s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-4px);
+    }
+    
+    .stat-card-primary {
+        background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+        color: white;
+    }
+    
+    .stat-card-success {
+        background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+        color: white;
+    }
+    
+    .stat-card-error {
+        background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+        color: white;
+    }
+    
+    .stat-card-warning {
+        background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+        color: white;
+    }
+    
+    .stat-card-info {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        color: white;
+    }
+    
+    .stat-icon-wrapper {
+        width: 64px;
+        height: 64px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
+@code {
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? Trend { get; set; }
+    [Parameter] public bool TrendPositive { get; set; } = true;
+    [Parameter] public Color Variant { get; set; } = Color.Primary;
+    [Parameter] public string? Class { get; set; }
+
+    private string GetTrendIcon()
+    {
+        return TrendPositive ? Icons.Material.Filled.TrendingUp : Icons.Material.Filled.TrendingDown;
+    }
+
+    private Color GetTrendColor()
+    {
+        return TrendPositive ? Color.Success : Color.Error;
+    }
+}

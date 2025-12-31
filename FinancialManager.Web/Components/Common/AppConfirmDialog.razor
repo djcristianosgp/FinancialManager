@@ -1,0 +1,51 @@
+@* 
+    Dialog de confirmação simplificado para ações destrutivas
+*@
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-items-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" />
+            <MudText Typo="Typo.h6">@Title</MudText>
+        </div>
+    </TitleContent>
+    
+    <DialogContent>
+        <MudText>@Message</MudText>
+        
+        @if (!string.IsNullOrEmpty(Details))
+        {
+            <MudAlert Severity="Severity.Warning" Class="mt-3">
+                @Details
+            </MudAlert>
+        }
+    </DialogContent>
+    
+    <DialogActions>
+        <AppButton Color="Color.Default" 
+                  ButtonVariant="Variant.Text"
+                  OnClick="@Cancel">
+            Cancelar
+        </AppButton>
+        
+        <AppButton Color="@ConfirmColor" 
+                  Loading="@Loading"
+                  OnClick="@Confirm">
+            @ConfirmText
+        </AppButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudBlazor.IDialogReference? MudDialog { get; set; }
+    
+    [Parameter] public string Title { get; set; } = "Confirmar Ação";
+    [Parameter] public string Message { get; set; } = "Tem certeza que deseja continuar?";
+    [Parameter] public string? Details { get; set; }
+    [Parameter] public string ConfirmText { get; set; } = "Confirmar";
+    [Parameter] public Color ConfirmColor { get; set; } = Color.Error;
+    [Parameter] public bool Loading { get; set; }
+
+    private void Cancel() => MudDialog?.Close(DialogResult.Cancel());
+    private void Confirm() => MudDialog?.Close(DialogResult.Ok(true));
+}
