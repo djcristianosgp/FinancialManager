@@ -22,7 +22,8 @@ public record ExpenseCreateDto(
     PaymentMethod PaymentMethod,
     ExpenseStatus Status,
     Guid? BankAccountId,
-    Guid? CreditCardId
+    Guid? CreditCardId,
+    int Installments = 1
 );
 
 public record ExpenseUpdateDto(
@@ -34,5 +35,6 @@ public record ExpenseUpdateDto(
     PaymentMethod PaymentMethod,
     ExpenseStatus Status,
     Guid? BankAccountId,
-    Guid? CreditCardId
+    Guid? CreditCardId,
+    int Installments = 1
 );

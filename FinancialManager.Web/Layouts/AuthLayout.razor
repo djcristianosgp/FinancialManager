@@ -1,0 +1,14 @@
+@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<CascadingAuthenticationState>
+    @Body
+</CascadingAuthenticationState>
+
+@code {
+}
+

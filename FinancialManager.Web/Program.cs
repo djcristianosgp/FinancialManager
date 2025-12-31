@@ -21,6 +21,7 @@ builder.Services.AddDataProtection()
     .SetApplicationName("FinancialManager");
 
 builder.Services.AddRazorPages();
+builder.Services.AddControllers();
 // Disable antiforgery to avoid token deserialization errors in Blazor Server
 builder.Services.AddAntiforgery(options =>
 {
@@ -38,6 +39,7 @@ builder.Services.AddServerSideBlazor()
         options.DetailedErrors = builder.Environment.IsDevelopment();
     });
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.Configuration["AppUrl"] ?? "http://localhost:8080") });
 builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -68,6 +70,9 @@ app.MapRazorPages();
 app.MapControllers();
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
+
+// Configure login route for Blazor
+app.UseStatusCodePagesWithReExecute("/auth/login");
 
 using (var scope = app.Services.CreateScope())
 {

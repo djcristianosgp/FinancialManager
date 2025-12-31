@@ -50,7 +50,8 @@ public class ExpenseService : IExpenseService
             expense.PaymentMethod,
             expense.Status,
             expense.BankAccountId,
-            expense.CreditCardId
+            expense.CreditCardId,
+            expense.Installments
         );
     }
 
@@ -67,14 +68,38 @@ public class ExpenseService : IExpenseService
             Status = dto.Status,
             BankAccountId = dto.BankAccountId,
             CreditCardId = dto.CreditCardId,
+            Installments = dto.Installments,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
         _context.Expenses.Add(expense);
 
+        // Se for cartão de crédito, criar transação no cartão
+        if (dto.PaymentMethod == PaymentMethod.Credit && dto.CreditCardId.HasValue)
+        {
+            var creditCard = await _context.CreditCards.FindAsync(dto.CreditCardId.Value);
+            if (creditCard != null)
+            {
+                var transaction = new CreditCardTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    CreditCardId = dto.CreditCardId.Value,
+                    Description = dto.Description,
+                    Category = dto.Category,
+                    Amount = dto.Amount,
+                    Installments = dto.Installments,
+                    CurrentInstallment = 1,
+                    TransactionDate = dto.Date,
+                    FirstDueDate = CalculateFirstDueDate(creditCard, dto.Date),
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.CreditCardTransactions.Add(transaction);
+            }
+        }
         // Atualizar saldo se for débito/dinheiro e já pago
-        if (dto.Status == ExpenseStatus.Paid && dto.PaymentMethod != PaymentMethod.Credit && dto.BankAccountId.HasValue)
+        else if (dto.Status == ExpenseStatus.Paid && dto.PaymentMethod != PaymentMethod.Credit && dto.BankAccountId.HasValue)
         {
             var account = await _context.BankAccounts.FindAsync(dto.BankAccountId.Value);
             if (account != null)
@@ -88,6 +113,23 @@ public class ExpenseService : IExpenseService
         return expense.Id;
     }
 
+    private DateTime CalculateFirstDueDate(CreditCard card, DateTime transactionDate)
+    {
+        var closingDate = new DateTime(transactionDate.Year, transactionDate.Month, card.ClosingDay);
+        
+        // Se a transação foi após o fechamento, a fatura é do próximo mês
+        if (transactionDate > closingDate)
+        {
+            closingDate = closingDate.AddMonths(1);
+        }
+        
+        // Data de vencimento é no mês seguinte ao fechamento
+        var dueDate = closingDate.AddMonths(1);
+        dueDate = new DateTime(dueDate.Year, dueDate.Month, card.DueDay);
+        
+        return dueDate;
+    }
+
     public async Task<bool> UpdateAsync(ExpenseUpdateDto dto)
     {
         var expense = await _context.Expenses.FindAsync(dto.Id);
@@ -96,7 +138,23 @@ public class ExpenseService : IExpenseService
         var oldAmount = expense.Amount;
         var oldStatus = expense.Status;
         var oldAccountId = expense.BankAccountId;
+        var oldCreditCardId = expense.CreditCardId;
         var oldPaymentMethod = expense.PaymentMethod;
+        var oldInstallments = expense.Installments;
+
+        // Se estava no cartão, remover transação antiga
+        if (oldPaymentMethod == PaymentMethod.Credit && oldCreditCardId.HasValue)
+        {
+            var oldTransaction = await _context.CreditCardTransactions
+                .FirstOrDefaultAsync(t => t.Description == expense.Title && 
+                                         t.CreditCardId == oldCreditCardId.Value &&
+                                         t.Amount == oldAmount &&
+                                         t.TransactionDate == expense.ExpenseDate);
+            if (oldTransaction != null)
+            {
+                _context.CreditCardTransactions.Remove(oldTransaction);
+            }
+        }
 
         expense.Title = dto.Description;
         expense.Amount = dto.Amount;
@@ -106,10 +164,34 @@ public class ExpenseService : IExpenseService
         expense.Status = dto.Status;
         expense.BankAccountId = dto.BankAccountId;
         expense.CreditCardId = dto.CreditCardId;
+        expense.Installments = dto.Installments;
         expense.UpdatedAt = DateTime.UtcNow;
 
+        // Se agora é cartão de crédito, criar nova transação
+        if (dto.PaymentMethod == PaymentMethod.Credit && dto.CreditCardId.HasValue)
+        {
+            var creditCard = await _context.CreditCards.FindAsync(dto.CreditCardId.Value);
+            if (creditCard != null)
+            {
+                var transaction = new CreditCardTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    CreditCardId = dto.CreditCardId.Value,
+                    Description = dto.Description,
+                    Category = dto.Category,
+                    Amount = dto.Amount,
+                    Installments = dto.Installments,
+                    CurrentInstallment = 1,
+                    TransactionDate = dto.Date,
+                    FirstDueDate = CalculateFirstDueDate(creditCard, dto.Date),
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.CreditCardTransactions.Add(transaction);
+            }
+        }
         // Ajustar saldos apenas para débito/dinheiro
-        if (oldPaymentMethod != PaymentMethod.Credit && dto.PaymentMethod != PaymentMethod.Credit)
+        else if (oldPaymentMethod != PaymentMethod.Credit && dto.PaymentMethod != PaymentMethod.Credit)
         {
             // Se mudou de pendente para pago
             if (oldStatus == ExpenseStatus.Pending && dto.Status == ExpenseStatus.Paid && dto.BankAccountId.HasValue)
@@ -169,6 +251,32 @@ public class ExpenseService : IExpenseService
                 }
             }
         }
+        // Se mudou de débito/dinheiro pago para crédito, devolver o saldo
+        else if (oldPaymentMethod != PaymentMethod.Credit && dto.PaymentMethod == PaymentMethod.Credit)
+        {
+            if (oldStatus == ExpenseStatus.Paid && oldAccountId.HasValue)
+            {
+                var account = await _context.BankAccounts.FindAsync(oldAccountId.Value);
+                if (account != null)
+                {
+                    account.CurrentBalance += oldAmount;
+                    account.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+        }
+        // Se mudou de crédito para débito/dinheiro pago, debitar do saldo
+        else if (oldPaymentMethod == PaymentMethod.Credit && dto.PaymentMethod != PaymentMethod.Credit)
+        {
+            if (dto.Status == ExpenseStatus.Paid && dto.BankAccountId.HasValue)
+            {
+                var account = await _context.BankAccounts.FindAsync(dto.BankAccountId.Value);
+                if (account != null)
+                {
+                    account.CurrentBalance -= dto.Amount;
+                    account.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+        }
 
         await _context.SaveChangesAsync();
         return true;
@@ -179,10 +287,23 @@ public class ExpenseService : IExpenseService
         var expense = await _context.Expenses.FindAsync(id);
         if (expense == null) return false;
 
+        // Se era cartão de crédito, remover transação
+        if (expense.PaymentMethod == PaymentMethod.Credit && expense.CreditCardId.HasValue)
+        {
+            var transaction = await _context.CreditCardTransactions
+                .FirstOrDefaultAsync(t => t.Description == expense.Title && 
+                                         t.CreditCardId == expense.CreditCardId.Value &&
+                                         t.Amount == expense.Amount &&
+                                         t.TransactionDate == expense.ExpenseDate);
+            if (transaction != null)
+            {
+                _context.CreditCardTransactions.Remove(transaction);
+            }
+        }
         // Reverter saldo se estava pago e não era crédito
-        if (expense.Status == ExpenseStatus.Paid && 
-            expense.PaymentMethod != PaymentMethod.Credit && 
-            expense.BankAccountId.HasValue)
+        else if (expense.Status == ExpenseStatus.Paid && 
+                 expense.PaymentMethod != PaymentMethod.Credit && 
+                 expense.BankAccountId.HasValue)
         {
             var account = await _context.BankAccounts.FindAsync(expense.BankAccountId.Value);
             if (account != null)

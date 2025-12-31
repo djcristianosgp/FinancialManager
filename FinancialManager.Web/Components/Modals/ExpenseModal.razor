@@ -78,19 +78,32 @@
 
             @if (_model.PaymentMethod == PaymentMethod.Credit)
             {
-                <MudSelect T="Guid?" @bind-Value="_model.CreditCardId"
-                         Label="Cartão de Crédito"
-                         Required="true"
-                         Variant="Variant.Outlined"
-                         Margin="Margin.Dense"
-                         Class="mb-4">
-                    @foreach (var card in _creditCards)
-                    {
-                        <MudSelectItem T="Guid?" Value="@card.Id">
-                            @card.Name - @card.Bank
-                        </MudSelectItem>
-                    }
-                </MudSelect>
+                <MudGrid Class="mb-4">
+                    <MudItem xs="12" sm="8">
+                        <MudSelect T="Guid?" @bind-Value="_model.CreditCardId"
+                                 Label="Cartão de Crédito"
+                                 Required="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense">
+                            @foreach (var card in _creditCards)
+                            {
+                                <MudSelectItem T="Guid?" Value="@card.Id">
+                                    @card.Name - @card.Bank (Limite: @card.Limit.ToString("C2", _culture))
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField @bind-Value="_model.Installments"
+                                       Label="Parcelas"
+                                       Required="true"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       Min="1"
+                                       Max="12"
+                                       HideSpinButtons="false" />
+                    </MudItem>
+                </MudGrid>
             }
             else if (_model.PaymentMethod == PaymentMethod.Debit || _model.PaymentMethod == PaymentMethod.Cash)
             {
@@ -167,7 +180,8 @@
                     PaymentMethod = expense.PaymentMethod,
                     Status = expense.Status,
                     BankAccountId = expense.BankAccountId,
-                    CreditCardId = expense.CreditCardId
+                    CreditCardId = expense.CreditCardId,
+                    Installments = expense.Installments
                 };
             }
         }
@@ -224,7 +238,8 @@
                     _model.PaymentMethod,
                     _model.Status,
                     _model.BankAccountId,
-                    _model.CreditCardId
+                    _model.CreditCardId,
+                    _model.Installments
                 );
                 
                 await ExpenseService.UpdateAsync(dto);
@@ -240,7 +255,8 @@
                     _model.PaymentMethod,
                     _model.Status,
                     _model.BankAccountId,
-                    _model.CreditCardId
+                    _model.CreditCardId,
+                    _model.Installments
                 );
                 
                 await ExpenseService.CreateAsync(dto);
@@ -284,5 +300,8 @@
 
         public Guid? BankAccountId { get; set; }
         public Guid? CreditCardId { get; set; }
+        
+        [Range(1, 12, ErrorMessage = "O número de parcelas deve estar entre 1 e 12")]
+        public int Installments { get; set; } = 1;
     }
 }

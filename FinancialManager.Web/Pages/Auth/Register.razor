@@ -1,0 +1,169 @@
+@page "/register"
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Text.Json
+@using Microsoft.JSInterop
+@attribute [AllowAnonymous]
+@layout AuthLayout
+
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-items-center justify-content-center" Style="min-height: 100vh;">
+    <MudPaper Elevation="3" Class="pa-8 w-100" Style="max-width: 400px;">
+        <div class="text-center mb-6">
+            <MudIcon Icon="@Icons.Material.Filled.AppRegistration" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
+            <MudText Typo="Typo.h4" Class="fw-bold">Criar Conta</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Default">Comece a gerenciar suas finanças</MudText>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4">
+                @_errorMessage
+            </MudAlert>
+        }
+
+        <EditForm Model="@_registerModel" OnValidSubmit="HandleRegister">
+            <DataAnnotationsValidator />
+
+            <MudTextField @bind-Value="_registerModel.Email"
+                         Label="E-mail"
+                         InputType="InputType.Email"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         FullWidth="true"
+                         Class="mb-4"
+                         Adornment="Adornment.Start"
+                         AdornmentIcon="@Icons.Material.Filled.Email" />
+
+            <MudTextField @bind-Value="_registerModel.Password"
+                         Label="Senha"
+                         InputType="InputType.Password"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         FullWidth="true"
+                         Class="mb-4"
+                         Adornment="Adornment.Start"
+                         AdornmentIcon="@Icons.Material.Filled.Lock" />
+
+            <MudTextField @bind-Value="_registerModel.ConfirmPassword"
+                         Label="Confirmar Senha"
+                         InputType="InputType.Password"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         FullWidth="true"
+                         Class="mb-6"
+                         Adornment="Adornment.Start"
+                         AdornmentIcon="@Icons.Material.Filled.Lock" />
+
+            <MudButton ButtonType="ButtonType.Submit"
+                      Variant="Variant.Filled"
+                      Color="Color.Primary"
+                      FullWidth="true"
+                      Size="Size.Large"
+                      Disabled="@_isLoading"
+                      Class="mb-4">
+                @if (_isLoading)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Criando conta...</MudText>
+                }
+                else
+                {
+                    <text>Criar Conta</text>
+                }
+            </MudButton>
+        </EditForm>
+
+        <MudDivider Class="my-4" />
+
+        <div class="text-center">
+            <MudText Typo="Typo.body2" Color="Color.Default">
+                Já tem conta?
+                <MudLink Href="/login" Class="font-weight-bold">
+                    Fazer login
+                </MudLink>
+            </MudText>
+        </div>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private RegisterModel _registerModel = new();
+    private string _errorMessage = string.Empty;
+    private bool _isLoading = false;
+
+    private async Task HandleRegister()
+    {
+        _errorMessage = string.Empty;
+        _isLoading = true;
+
+        try
+        {
+            if (_registerModel.Password != _registerModel.ConfirmPassword)
+            {
+                _errorMessage = "As senhas não conferem.";
+                return;
+            }
+
+            var registerRequest = new 
+            { 
+                _registerModel.Email, 
+                _registerModel.Password, 
+                _registerModel.ConfirmPassword 
+            };
+            
+            var response = await Http.PostAsJsonAsync("api/auth/register", registerRequest);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Conta criada com sucesso! Bem-vindo!", Severity.Success);
+                await Task.Delay(2000);
+                try
+                {
+                    // Usar função JavaScript para fazer o redirect
+                    await JS.InvokeVoidAsync("navigationHelper.redirectTo", "/");
+                }
+                catch (Exception jsEx)
+                {
+                    Console.WriteLine($"Erro ao chamar função JavaScript: {jsEx.Message}");
+                    // Fallback para NavigationManager se JavaScript falhar
+                    Navigation.NavigateTo("/", true);
+                }
+            }
+            else
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(content);
+                var message = doc.RootElement.GetProperty("message").GetString();
+                _errorMessage = message ?? "Erro ao criar conta.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Erro ao criar conta: {ex.Message}";
+            Snackbar.Add(_errorMessage, Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private class RegisterModel
+    {
+        [Required(ErrorMessage = "E-mail é obrigatório")]
+        [EmailAddress(ErrorMessage = "E-mail inválido")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Senha é obrigatória")]
+        [MinLength(6, ErrorMessage = "Senha deve ter no mínimo 6 caracteres")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Confirmação de senha é obrigatória")]
+        [Compare("Password", ErrorMessage = "As senhas não conferem")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

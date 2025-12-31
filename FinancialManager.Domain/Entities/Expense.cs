@@ -17,4 +17,6 @@ public class Expense : BaseEntity
 
     public Guid? CreditCardId { get; set; }
     public CreditCard? CreditCard { get; set; }
+
+    public int Installments { get; set; } = 1;
 }

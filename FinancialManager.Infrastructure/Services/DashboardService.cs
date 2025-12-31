@@ -68,16 +68,24 @@ public class DashboardService : IDashboardService
             .ToList();
 
         var upcomingInvoices = cardTransactions
-            .Where(t => t.FirstDueDate >= referenceDate.Date)
-            .OrderBy(t => t.FirstDueDate)
+            .Where(t => t.CurrentInstallment <= t.Installments) // Apenas parcelas não pagas
+            .GroupBy(t => new { t.CreditCardId, t.CreditCard!.Name, DueMonth = t.FirstDueDate.Month, DueYear = t.FirstDueDate.Year })
+            .Select(g => new
+            {
+                CardName = g.Key.Name,
+                DueDate = new DateTime(g.Key.DueYear, g.Key.DueMonth, g.First().CreditCard!.DueDay),
+                Amount = g.Sum(t => t.InstallmentAmount)
+            })
+            .Where(i => i.DueDate >= referenceDate.Date && i.DueDate <= referenceDate.AddMonths(2)) // Próximos 2 meses
+            .OrderBy(i => i.DueDate)
             .Take(5)
-            .Select(t => new InvoiceItem(t.CreditCard?.Name ?? "Card", t.FirstDueDate, t.InstallmentAmount))
+            .Select(i => new InvoiceItem(i.CardName, i.DueDate, i.Amount))
             .ToList();
 
         var creditLimit = creditCards.Sum(c => c.Limit);
         var creditCurrent = cardTransactions
-            .Where(t => t.FirstDueDate.Month == month && t.FirstDueDate.Year == year)
-            .Sum(t => t.InstallmentAmount);
+            .Where(t => t.CurrentInstallment <= t.Installments) // Apenas parcelas ativas
+            .Sum(t => t.RemainingAmount); // Soma das parcelas restantes
 
         var creditUsagePercent = creditLimit == 0 ? 0 : Math.Round((creditCurrent / creditLimit) * 100, 0);
 
