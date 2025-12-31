@@ -1,0 +1,103 @@
+@page
+@using FinancialManager.Domain.Enums
+@model FinancialManager.Web.Pages.Expenses.IndexModel
+@{
+    ViewData["Title"] = "Despesas";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>💳 Despesas</h1>
+    <a href="/expenses/create" class="btn btn-danger">+ Nova Despesa</a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        @if (!Model.Expenses.Any())
+        {
+            <p class="text-muted text-center py-4">Nenhuma despesa cadastrada.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Descrição</th>
+                            <th>Categoria</th>
+                            <th>Pagamento</th>
+                            <th>Status</th>
+                            <th class="text-end">Valor</th>
+                            <th width="120">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var expense in Model.Expenses)
+                        {
+                            <tr>
+                                <td>@expense.Date.ToString("dd/MM/yyyy")</td>
+                                <td>@expense.Description</td>
+                                <td><span class="badge bg-secondary">@expense.Category</span></td>
+                                <td>
+                                    @switch (expense.PaymentMethod)
+                                    {
+                                        case PaymentMethod.Cash:
+                                            <span class="badge bg-success">Dinheiro</span>
+                                            break;
+                                        case PaymentMethod.Debit:
+                                            <span class="badge bg-primary">Débito</span>
+                                            if (expense.BankAccountName != null)
+                                            {
+                                                <small>(@expense.BankAccountName)</small>
+                                            }
+                                            break;
+                                        case PaymentMethod.Credit:
+                                            <span class="badge bg-warning text-dark">Crédito</span>
+                                            if (expense.CreditCardName != null)
+                                            {
+                                                <small>(@expense.CreditCardName)</small>
+                                            }
+                                            break;
+                                    }
+                                </td>
+                                <td>
+                                    @if (expense.Status == ExpenseStatus.Paid)
+                                    {
+                                        <span class="badge bg-success">Pago</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark">Pendente</span>
+                                    }
+                                </td>
+                                <td class="text-end text-danger fw-bold">@expense.Amount.ToString("C", new System.Globalization.CultureInfo("pt-BR"))</td>
+                                <td>
+                                    <a href="/expenses/edit/@expense.Id" class="btn btn-sm btn-outline-primary">Editar</a>
+                                    <form method="post" asp-page-handler="Delete" asp-route-id="@expense.Id" style="display:inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Confirma exclusão?')">Excluir</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="fw-bold">
+                            <td colspan="5" class="text-end">Total:</td>
+                            <td class="text-end text-danger">@Model.Expenses.Sum(e => e.Amount).ToString("C", new System.Globalization.CultureInfo("pt-BR"))</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        }
+    </div>
+</div>

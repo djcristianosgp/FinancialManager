@@ -1,0 +1,58 @@
+@page
+@model FinancialManager.Web.Pages.BankAccounts.CreateModel
+@{
+    ViewData["Title"] = "Nova Conta";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<div class="mb-4">
+    <h1>🏦 Nova Conta Bancária</h1>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/bankaccounts">Contas</a></li>
+            <li class="breadcrumb-item active">Nova</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label">Banco</label>
+                        <input type="text" class="form-control" asp-for="Input.Bank" placeholder="Ex: Nubank, Itaú, Bradesco" required />
+                        <span asp-validation-for="Input.Bank" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Tipo</label>
+                        <select class="form-select" asp-for="Input.Type" required>
+                            <option value="0">Conta Corrente</option>
+                            <option value="1">Poupança</option>
+                            <option value="2">Digital</option>
+                        </select>
+                        <span asp-validation-for="Input.Type" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Saldo Inicial</label>
+                        <input type="number" step="0.01" class="form-control" asp-for="Input.InitialBalance" />
+                        <span asp-validation-for="Input.InitialBalance" class="text-danger"></span>
+                        <small class="text-muted">Deixe 0 se estiver criando uma conta nova</small>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Salvar</button>
+                        <a href="/bankaccounts" class="btn btn-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

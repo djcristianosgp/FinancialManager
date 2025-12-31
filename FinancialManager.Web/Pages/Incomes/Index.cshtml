@@ -1,0 +1,89 @@
+@page
+@using FinancialManager.Domain.Enums
+@model FinancialManager.Web.Pages.Incomes.IndexModel
+@{
+    ViewData["Title"] = "Receitas";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>💰 Receitas</h1>
+    <a href="/incomes/create" class="btn btn-success">+ Nova Receita</a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        @if (!Model.Incomes.Any())
+        {
+            <p class="text-muted text-center py-4">Nenhuma receita cadastrada.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Descrição</th>
+                            <th>Categoria</th>
+                            <th>Conta</th>
+                            <th>Recorrência</th>
+                            <th class="text-end">Valor</th>
+                            <th width="120">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var income in Model.Incomes)
+                        {
+                            <tr>
+                                <td>@income.Date.ToString("dd/MM/yyyy")</td>
+                                <td>@income.Description</td>
+                                <td><span class="badge bg-info">@income.Category</span></td>
+                                <td>@income.BankAccountName</td>
+                                <td>
+                                    @switch (income.Recurrence)
+                                    {
+                                        case RecurrenceType.None:
+                                            <span class="badge bg-secondary">Única</span>
+                                            break;
+                                        case RecurrenceType.Weekly:
+                                            <span class="badge bg-info">Semanal</span>
+                                            break;
+                                        case RecurrenceType.Monthly:
+                                            <span class="badge bg-primary">Mensal</span>
+                                            break;
+                                        case RecurrenceType.Yearly:
+                                            <span class="badge bg-warning">Anual</span>
+                                            break;
+                                    }
+                                </td>
+                                <td class="text-end text-success fw-bold">@income.Amount.ToString("C", new System.Globalization.CultureInfo("pt-BR"))</td>
+                                <td>
+                                    <a href="/incomes/edit/@income.Id" class="btn btn-sm btn-outline-primary">Editar</a>
+                                    <form method="post" asp-page-handler="Delete" asp-route-id="@income.Id" style="display:inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Confirma exclusão?')">Excluir</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="fw-bold">
+                            <td colspan="5" class="text-end">Total:</td>
+                            <td class="text-end text-success">@Model.Incomes.Sum(i => i.Amount).ToString("C", new System.Globalization.CultureInfo("pt-BR"))</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        }
+    </div>
+</div>

@@ -1,0 +1,128 @@
+@page "{id:guid}"
+@using FinancialManager.Domain.Enums
+@model FinancialManager.Web.Pages.BankAccounts.DetailsModel
+@{
+    ViewData["Title"] = "Detalhes da Conta";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-page="/BankAccounts/Index">Contas Bancárias</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Detalhes</li>
+        </ol>
+    </nav>
+
+    @if (Model.Account != null)
+    {
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">🏦 @Model.Account.Bank</h4>
+                        <div>
+                            <a asp-page="/BankAccounts/Edit" asp-route-id="@Model.Account.Id" class="btn btn-warning btn-sm">Editar</a>
+                            <a asp-page="/BankAccounts/Index" class="btn btn-secondary btn-sm">Voltar</a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <h6 class="text-muted">Tipo de Conta</h6>
+                                <p class="fs-5">
+                                    @switch (Model.Account.Type)
+                                    {
+                                        case AccountType.Checking:
+                                            <span class="badge bg-primary">💰 Corrente</span>
+                                            break;
+                                        case AccountType.Savings:
+                                            <span class="badge bg-success">🏦 Poupança</span>
+                                            break;
+                                        case AccountType.Digital:
+                                            <span class="badge bg-info">💳 Digital</span>
+                                            break;
+                                    }
+                                </p>
+                            </div>
+                            <div class="col-md-4">
+                                <h6 class="text-muted">Saldo Inicial</h6>
+                                <p class="fs-5">@Model.Account.InitialBalance.ToString("C", new System.Globalization.CultureInfo("pt-BR"))</p>
+                            </div>
+                            <div class="col-md-4">
+                                <h6 class="text-muted">Saldo Atual</h6>
+                                <p class="fs-3 fw-bold @(Model.Account.CurrentBalance >= 0 ? "text-success" : "text-danger")">
+                                    @Model.Account.CurrentBalance.ToString("C", new System.Globalization.CultureInfo("pt-BR"))
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">📊 Transações Recentes</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.Account.RecentTransactions.Any())
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Data</th>
+                                            <th>Tipo</th>
+                                            <th>Descrição</th>
+                                            <th class="text-end">Valor</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var transaction in Model.Account.RecentTransactions)
+                                        {
+                                            <tr>
+                                                <td>@transaction.Date.ToString("dd/MM/yyyy")</td>
+                                                <td>
+                                                    @switch (transaction.Type)
+                                                    {
+                                                        case BankTransactionType.Income:
+                                                            <span class="badge bg-success">💰 Receita</span>
+                                                            break;
+                                                        case BankTransactionType.Expense:
+                                                            <span class="badge bg-danger">💸 Despesa</span>
+                                                            break;
+                                                        case BankTransactionType.TransferIn:
+                                                            <span class="badge bg-info">🔄 Transferência Recebida</span>
+                                                            break;
+                                                        case BankTransactionType.TransferOut:
+                                                            <span class="badge bg-info">🔄 Transferência Enviada</span>
+                                                            break;
+                                                    }
+                                                </td>
+                                                <td>@transaction.Description</td>
+                                                <td class="text-end fw-bold @(transaction.Amount >= 0 ? "text-success" : "text-danger")">
+                                                    @transaction.Amount.ToString("C", new System.Globalization.CultureInfo("pt-BR"))
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info mb-0">
+                                <p class="mb-0">Nenhuma transação registrada ainda.</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>

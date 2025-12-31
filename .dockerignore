@@ -1,0 +1,10 @@
+**/bin
+**/obj
+**/.vs
+**/.vscode
+**/Data/*.db
+**/Data/*.db-shm
+**/Data/*.db-wal
+Dockerfile
+docker-compose.yml
+.env

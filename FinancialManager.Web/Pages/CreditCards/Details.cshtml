@@ -1,0 +1,148 @@
+@page "{id:guid}"
+@model FinancialManager.Web.Pages.CreditCards.DetailsModel
+@{
+    ViewData["Title"] = "Detalhes do Cartão";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-page="/CreditCards/Index">Cartões de Crédito</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Detalhes</li>
+        </ol>
+    </nav>
+
+    @if (Model.Card != null)
+    {
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">💳 @Model.Card.Name</h4>
+                        <div>
+                            <a asp-page="/CreditCards/AddTransaction" asp-route-id="@Model.Card.Id" class="btn btn-success btn-sm">+ Nova Compra</a>
+                            <a asp-page="/CreditCards/Edit" asp-route-id="@Model.Card.Id" class="btn btn-warning btn-sm">Editar</a>
+                            <a asp-page="/CreditCards/Index" class="btn btn-secondary btn-sm">Voltar</a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <h6 class="text-muted">Banco</h6>
+                                <p class="fs-5">@Model.Card.Bank</p>
+                            </div>
+                            <div class="col-md-3">
+                                <h6 class="text-muted">Limite Total</h6>
+                                <p class="fs-5">@Model.Card.Limit.ToString("C", new System.Globalization.CultureInfo("pt-BR"))</p>
+                            </div>
+                            <div class="col-md-3">
+                                <h6 class="text-muted">Limite Disponível</h6>
+                                <p class="fs-5 fw-bold text-success">@Model.Card.AvailableLimit.ToString("C", new System.Globalization.CultureInfo("pt-BR"))</p>
+                            </div>
+                            <div class="col-md-3">
+                                <h6 class="text-muted">Utilização</h6>
+                                @{
+                                    var usagePercentage = Model.Card.Limit > 0 
+                                        ? ((Model.Card.Limit - Model.Card.AvailableLimit) / Model.Card.Limit) * 100 
+                                        : 0;
+                                    var progressClass = usagePercentage > 80 ? "bg-danger" : usagePercentage > 50 ? "bg-warning" : "bg-success";
+                                }
+                                <div class="progress" style="height: 25px;">
+                                    <div class="progress-bar @progressClass" role="progressbar" 
+                                         style="width: @usagePercentage.ToString("F0")%" 
+                                         aria-valuenow="@usagePercentage" aria-valuemin="0" aria-valuemax="100">
+                                        @usagePercentage.ToString("F0")%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <hr />
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-muted">Dia de Fechamento</h6>
+                                <p class="fs-5">Dia @Model.Card.ClosingDay</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-muted">Dia de Vencimento</h6>
+                                <p class="fs-5">Dia @Model.Card.DueDay</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transactions -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">🛒 Compras no Cartão</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.Card.Transactions.Any())
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Data</th>
+                                            <th>Descrição</th>
+                                            <th>Categoria</th>
+                                            <th class="text-center">Parcelas</th>
+                                            <th class="text-end">Valor Total</th>
+                                            <th class="text-end">Valor Restante</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var transaction in Model.Card.Transactions)
+                                        {
+                                            <tr>
+                                                <td>@transaction.Date.ToString("dd/MM/yyyy")</td>
+                                                <td>@transaction.Description</td>
+                                                <td><span class="badge bg-secondary">@transaction.Category</span></td>
+                                                <td class="text-center">
+                                                    @if (transaction.Installments > 1)
+                                                    {
+                                                        <span class="badge bg-info">@transaction.CurrentInstallment/@transaction.Installments</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-secondary">À vista</span>
+                                                    }
+                                                </td>
+                                                <td class="text-end">@transaction.Amount.ToString("C", new System.Globalization.CultureInfo("pt-BR"))</td>
+                                                <td class="text-end fw-bold @(transaction.RemainingAmount > 0 ? "text-warning" : "text-success")">
+                                                    @transaction.RemainingAmount.ToString("C", new System.Globalization.CultureInfo("pt-BR"))
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="table-secondary">
+                                            <th colspan="5" class="text-end">Total em Aberto:</th>
+                                            <th class="text-end">@Model.Card.Transactions.Sum(t => t.RemainingAmount).ToString("C", new System.Globalization.CultureInfo("pt-BR"))</th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info mb-0">
+                                <p class="mb-0">Nenhuma compra registrada neste cartão ainda.</p>
+                                <p class="mb-0 mt-2">
+                                    <a asp-page="/CreditCards/AddTransaction" asp-route-id="@Model.Card.Id" class="btn btn-primary btn-sm">
+                                        + Adicionar Primeira Compra
+                                    </a>
+                                </p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>

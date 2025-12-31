@@ -1,0 +1,80 @@
+@page
+@model FinancialManager.Web.Pages.CreditCards.IndexModel
+@{
+    ViewData["Title"] = "Cartões de Crédito";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>💳 Cartões de Crédito</h1>
+    <a href="/creditcards/create" class="btn btn-warning">+ Novo Cartão</a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row">
+    @if (!Model.CreditCards.Any())
+    {
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <p class="text-muted">Nenhum cartão de crédito cadastrado.</p>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        @foreach (var card in Model.CreditCards)
+        {
+            var usagePercentage = card.Limit > 0 ? ((card.Limit - card.AvailableLimit) / card.Limit * 100) : 0;
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">@card.Name</h5>
+                        <p class="text-muted">@card.Bank</p>
+                        
+                        <div class="mb-3">
+                            <small class="text-muted">Limite Disponível</small>
+                            <h4 class="text-success">@card.AvailableLimit.ToString("C", new System.Globalization.CultureInfo("pt-BR"))</h4>
+                            <small class="text-muted">de @card.Limit.ToString("C", new System.Globalization.CultureInfo("pt-BR"))</small>
+                        </div>
+
+                        <div class="progress mb-3" style="height: 10px;">
+                            <div class="progress-bar @(usagePercentage > 80 ? "bg-danger" : usagePercentage > 50 ? "bg-warning" : "bg-success")" 
+                                 role="progressbar" 
+                                 style="width: @usagePercentage%">
+                            </div>
+                        </div>
+
+                        <div class="row text-center small">
+                            <div class="col-6">
+                                <strong>Fechamento</strong><br/>
+                                Dia @card.ClosingDay
+                            </div>
+                            <div class="col-6">
+                                <strong>Vencimento</strong><br/>
+                                Dia @card.DueDay
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="d-flex gap-2">
+                            <a href="/creditcards/details/@card.Id" class="btn btn-sm btn-outline-primary flex-fill">Detalhes</a>
+                            <a href="/creditcards/edit/@card.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@card.Id" style="display:inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Confirma exclusão?')">Excluir</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>

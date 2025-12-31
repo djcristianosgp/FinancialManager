@@ -1,0 +1,12 @@
+services:
+  financialmanager:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./Data:/app/Data
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DOTNET_RUNNING_IN_CONTAINER=true
+      - ASPNETCORE_URLS=http://+:8080
+    restart: unless-stopped

@@ -1,0 +1,136 @@
+@page "/"
+@page "/dashboard"
+
+@attribute [Authorize]
+@using System.Globalization
+@inject FinancialManager.Application.Services.IDashboardService DashboardService
+
+<h1 class="mb-4">Dashboard</h1>
+
+<div class="card-grid mb-4">
+    @foreach (var metric in Metrics)
+    {
+        <div class="metric-card">
+            <h3>@metric.Label</h3>
+            <div class="value">@metric.Value</div>
+            <div class="text-secondary" style="color: var(--muted); font-size: 0.85rem;">@metric.Description</div>
+        </div>
+    }
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="panel mb-3">
+            <h2>Expenses by category</h2>
+            <div class="mt-3">
+                @foreach (var category in CategoryBreakdown)
+                {
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>@category.Name</span>
+                            <span class="badge">@category.Amount.ToString("C", _culture)</span>
+                        </div>
+                        <div class="progress" style="height: 8px; background: rgba(255,255,255,0.05);">
+                            <div class="progress-bar" role="progressbar" style=$"width: {category.Percentage}%; background: #22c55e;" aria-valuenow="@category.Percentage" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Recent movements</h2>
+            <table class="table-lite">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var movement in RecentMovements)
+                    {
+                        <tr>
+                            <td>@movement.Date.ToShortDateString()</td>
+                            <td>@movement.Title</td>
+                            <td>@movement.Category</td>
+                            <td class="fw-bold">@movement.Amount.ToString("C", _culture)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="panel mb-3">
+            <h2>Upcoming invoices</h2>
+            <ul class="list-unstyled m-0">
+                @foreach (var invoice in UpcomingInvoices)
+                {
+                    <li class="d-flex justify-content-between align-items-center py-2 border-bottom" style="border-color: rgba(255,255,255,0.06);">
+                        <div>
+                            <div class="fw-semibold">@invoice.CardName</div>
+                            <small style="color: var(--muted);">Due @invoice.DueDate.ToShortDateString()</small>
+                        </div>
+                        <span class="badge">@invoice.Amount.ToString("C", _culture)</span>
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <div class="panel">
+            <h2>Credit usage</h2>
+            <div class="mb-2">Current invoice</div>
+            <div class="progress" style="height: 10px; background: rgba(255,255,255,0.05);">
+                <div class="progress-bar" role="progressbar" style=$"width: {CreditUsage.CurrentPercentage}%; background: #22c55e;" aria-valuenow="@CreditUsage.CurrentPercentage" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            <div class="mt-2 text-end">@CreditUsage.CurrentAmount.ToString("C", _culture) of @CreditUsage.Limit.ToString("C", _culture)</div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private readonly CultureInfo _culture = CultureInfo.GetCultureInfo("pt-BR");
+
+    private IReadOnlyList<Metric> Metrics { get; set; } = Array.Empty<Metric>();
+    private IReadOnlyList<CategorySummary> CategoryBreakdown { get; set; } = Array.Empty<CategorySummary>();
+    private IReadOnlyList<Movement> RecentMovements { get; set; } = Array.Empty<Movement>();
+    private IReadOnlyList<Invoice> UpcomingInvoices { get; set; } = Array.Empty<Invoice>();
+    private CreditUsageSummary CreditUsage { get; set; } = new(0, 0, 0);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var summary = await DashboardService.GetSummaryAsync(DateTime.UtcNow);
+
+        Metrics = new List<Metric>
+        {
+            new("Total balance", summary.Metrics.TotalBalance.ToString("C", _culture), "Across all bank accounts"),
+            new("Monthly income", summary.Metrics.MonthlyIncome.ToString("C", _culture), "Confirmed inflows"),
+            new("Monthly expenses", summary.Metrics.MonthlyExpenses.ToString("C", _culture), "Paid and pending"),
+            new("Credit usage", $"{summary.Metrics.CreditUsagePercent}%", "Current billing cycle")
+        };
+
+        CategoryBreakdown = summary.Categories
+            .Select(c => new CategorySummary(c.Name, c.Amount, (int)c.Percentage))
+            .ToList();
+
+        RecentMovements = summary.RecentMovements
+            .Select(m => new Movement(m.Date, m.Title, m.Category, m.Amount))
+            .ToList();
+
+        UpcomingInvoices = summary.UpcomingInvoices
+            .Select(i => new Invoice(i.CardName, i.DueDate, i.Amount))
+            .ToList();
+
+        CreditUsage = new CreditUsageSummary(summary.CreditUsage.CurrentAmount, summary.CreditUsage.Limit, (int)summary.CreditUsage.CurrentPercentage);
+    }
+
+    private record Metric(string Label, string Value, string Description);
+    private record CategorySummary(string Name, decimal Amount, int Percentage);
+    private record Movement(DateTime Date, string Title, string Category, decimal Amount);
+    private record Invoice(string CardName, DateTime DueDate, decimal Amount);
+    private record CreditUsageSummary(decimal CurrentAmount, decimal Limit, int CurrentPercentage);
+}

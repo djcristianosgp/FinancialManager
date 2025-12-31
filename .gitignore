@@ -1,0 +1,32 @@
+## Build artifacts
+**/bin/
+**/obj/
+**/out/
+
+## User settings
+**/.vs/
+**/.vscode/
+
+## Logs
+**/*.log
+
+## Dotnet tools
+**/.dotnet/
+**/.tools/
+
+## Secrets and environment
+*.user
+*.suo
+.env
+
+## SQLite data
+Data/*.db
+Data/*.db-shm
+Data/*.db-wal
+
+## Published output
+**/publish/
+
+## Docker
+Dockerfile
+*.tar

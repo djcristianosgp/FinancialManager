@@ -1,0 +1,61 @@
+@page "{id:guid}"
+@model FinancialManager.Web.Pages.BankAccounts.EditModel
+@{
+    ViewData["Title"] = "Editar Conta Bancária";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-page="/BankAccounts/Index">Contas Bancárias</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Editar</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">✏️ Editar Conta Bancária</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <input type="hidden" asp-for="Input.Id" />
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Bank" class="form-label">Banco</label>
+                            <input asp-for="Input.Bank" class="form-control" />
+                            <span asp-validation-for="Input.Bank" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Type" class="form-label">Tipo de Conta</label>
+                            <select asp-for="Input.Type" class="form-select">
+                                <option value="0">💰 Corrente</option>
+                                <option value="1">🏦 Poupança</option>
+                                <option value="2">💳 Digital</option>
+                            </select>
+                            <span asp-validation-for="Input.Type" class="text-danger"></span>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <strong>⚠️ Atenção:</strong> O saldo atual não pode ser alterado diretamente. 
+                            Ele é calculado automaticamente com base nas receitas e despesas vinculadas a esta conta.
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a asp-page="/BankAccounts/Index" class="btn btn-secondary">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,130 @@
+:root {
+    --bg: #0f172a;
+    --panel: #111827;
+    --accent: #22c55e;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background: radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.08), transparent 25%),
+                radial-gradient(circle at 80% 0%, rgba(94, 234, 212, 0.08), transparent 20%),
+                var(--bg);
+    color: var(--text);
+}
+
+.page {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: 100vh;
+}
+
+.sidebar {
+    background: linear-gradient(180deg, #0b1224 0%, #0b1120 100%);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.nav-link {
+    color: var(--muted);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.25rem;
+    transition: background 0.2s ease, color 0.2s ease;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.nav-link:hover,
+.nav-link:focus,
+.nav-link.active {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--text);
+}
+
+.top-row {
+    display: flex;
+    align-items: center;
+    height: 60px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.content {
+    padding: 1.5rem;
+}
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.metric-card {
+    background: var(--panel);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.metric-card h3 {
+    margin: 0 0 0.35rem 0;
+    font-size: 0.95rem;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+}
+
+.metric-card .value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.panel {
+    background: var(--panel);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+}
+
+.panel h2 {
+    margin-top: 0;
+    font-size: 1rem;
+    color: var(--muted);
+    letter-spacing: 0.4px;
+}
+
+.table-lite {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--text);
+}
+
+.table-lite th,
+.table-lite td {
+    padding: 0.5rem 0.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    text-align: left;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    color: #0b1120;
+    background: var(--accent);
+    font-weight: 700;
+}
+
+@media (max-width: 900px) {
+    .page {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        display: none;
+    }
+}
